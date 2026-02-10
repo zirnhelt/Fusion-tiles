@@ -1,0 +1,835 @@
+import React, { useState, useEffect } from 'react';
+import { Atom, RotateCcw, Trophy, Lightbulb, Zap } from 'lucide-react';
+
+// All 118 elements with atomic weights (rounded to nearest integer)
+const ELEMENTS = [
+  { symbol: 'H', name: 'Hydrogen', number: 1, weight: 1, color: '#E8F4F8' },
+  { symbol: 'He', name: 'Helium', number: 2, weight: 4, color: '#D5E8F7' },
+  { symbol: 'Li', name: 'Lithium', number: 3, weight: 7, color: '#FFE5E5' },
+  { symbol: 'Be', name: 'Beryllium', number: 4, weight: 9, color: '#F0E68C' },
+  { symbol: 'B', name: 'Boron', number: 5, weight: 11, color: '#DDA15E' },
+  { symbol: 'C', name: 'Carbon', number: 6, weight: 12, color: '#C9C9C9' },
+  { symbol: 'N', name: 'Nitrogen', number: 7, weight: 14, color: '#B4D7FF' },
+  { symbol: 'O', name: 'Oxygen', number: 8, weight: 16, color: '#FFD1D1' },
+  { symbol: 'F', name: 'Fluorine', number: 9, weight: 19, color: '#D4F1D4' },
+  { symbol: 'Ne', name: 'Neon', number: 10, weight: 20, color: '#FFCCE5' },
+  { symbol: 'Na', name: 'Sodium', number: 11, weight: 23, color: '#FFE8A3' },
+  { symbol: 'Mg', name: 'Magnesium', number: 12, weight: 24, color: '#E6E6E6' },
+  { symbol: 'Al', name: 'Aluminum', number: 13, weight: 27, color: '#D4D4FF' },
+  { symbol: 'Si', name: 'Silicon', number: 14, weight: 28, color: '#C8B8A8' },
+  { symbol: 'P', name: 'Phosphorus', number: 15, weight: 31, color: '#FFD4AA' },
+  { symbol: 'S', name: 'Sulfur', number: 16, weight: 32, color: '#FFFFAA' },
+  { symbol: 'Cl', name: 'Chlorine', number: 17, weight: 35, color: '#D4FFD4' },
+  { symbol: 'Ar', name: 'Argon', number: 18, weight: 40, color: '#E5CCFF' },
+  { symbol: 'K', name: 'Potassium', number: 19, weight: 39, color: '#FFE5CC' },
+  { symbol: 'Ca', name: 'Calcium', number: 20, weight: 40, color: '#F0F0F0' },
+  { symbol: 'Sc', name: 'Scandium', number: 21, weight: 45, color: '#FFE4E1' },
+  { symbol: 'Ti', name: 'Titanium', number: 22, weight: 48, color: '#C0C0C0' },
+  { symbol: 'V', name: 'Vanadium', number: 23, weight: 51, color: '#A6A6D2' },
+  { symbol: 'Cr', name: 'Chromium', number: 24, weight: 52, color: '#8C92AC' },
+  { symbol: 'Mn', name: 'Manganese', number: 25, weight: 55, color: '#9C88AA' },
+  { symbol: 'Fe', name: 'Iron', number: 26, weight: 56, color: '#E06633' },
+  { symbol: 'Co', name: 'Cobalt', number: 27, weight: 59, color: '#F090A0' },
+  { symbol: 'Ni', name: 'Nickel', number: 28, weight: 59, color: '#50D050' },
+  { symbol: 'Cu', name: 'Copper', number: 29, weight: 64, color: '#C88033' },
+  { symbol: 'Zn', name: 'Zinc', number: 30, weight: 65, color: '#7D80B0' },
+  { symbol: 'Ga', name: 'Gallium', number: 31, weight: 70, color: '#C28F8F' },
+  { symbol: 'Ge', name: 'Germanium', number: 32, weight: 73, color: '#668F8F' },
+  { symbol: 'As', name: 'Arsenic', number: 33, weight: 75, color: '#BD80E3' },
+  { symbol: 'Se', name: 'Selenium', number: 34, weight: 79, color: '#FFA100' },
+  { symbol: 'Br', name: 'Bromine', number: 35, weight: 80, color: '#A62929' },
+  { symbol: 'Kr', name: 'Krypton', number: 36, weight: 84, color: '#5CB8D1' },
+  { symbol: 'Rb', name: 'Rubidium', number: 37, weight: 85, color: '#702EB0' },
+  { symbol: 'Sr', name: 'Strontium', number: 38, weight: 88, color: '#00FF00' },
+  { symbol: 'Y', name: 'Yttrium', number: 39, weight: 89, color: '#94FFFF' },
+  { symbol: 'Zr', name: 'Zirconium', number: 40, weight: 91, color: '#94E0E0' },
+  { symbol: 'Nb', name: 'Niobium', number: 41, weight: 93, color: '#73C2C9' },
+  { symbol: 'Mo', name: 'Molybdenum', number: 42, weight: 96, color: '#54B5B5' },
+  { symbol: 'Tc', name: 'Technetium', number: 43, weight: 98, color: '#3B9E9E' },
+  { symbol: 'Ru', name: 'Ruthenium', number: 44, weight: 101, color: '#248F8F' },
+  { symbol: 'Rh', name: 'Rhodium', number: 45, weight: 103, color: '#0A7D8C' },
+  { symbol: 'Pd', name: 'Palladium', number: 46, weight: 106, color: '#006985' },
+  { symbol: 'Ag', name: 'Silver', number: 47, weight: 108, color: '#C0C0C0' },
+  { symbol: 'Cd', name: 'Cadmium', number: 48, weight: 112, color: '#FFD98F' },
+  { symbol: 'In', name: 'Indium', number: 49, weight: 115, color: '#A67573' },
+  { symbol: 'Sn', name: 'Tin', number: 50, weight: 119, color: '#668080' },
+  { symbol: 'Sb', name: 'Antimony', number: 51, weight: 122, color: '#9E63B5' },
+  { symbol: 'Te', name: 'Tellurium', number: 52, weight: 128, color: '#D47A00' },
+  { symbol: 'I', name: 'Iodine', number: 53, weight: 127, color: '#940094' },
+  { symbol: 'Xe', name: 'Xenon', number: 54, weight: 131, color: '#429EB0' },
+  { symbol: 'Cs', name: 'Cesium', number: 55, weight: 133, color: '#57178F' },
+  { symbol: 'Ba', name: 'Barium', number: 56, weight: 137, color: '#00C900' },
+  { symbol: 'La', name: 'Lanthanum', number: 57, weight: 139, color: '#70D4FF' },
+  { symbol: 'Ce', name: 'Cerium', number: 58, weight: 140, color: '#FFFFC7' },
+  { symbol: 'Pr', name: 'Praseodymium', number: 59, weight: 141, color: '#D9FFC7' },
+  { symbol: 'Nd', name: 'Neodymium', number: 60, weight: 144, color: '#C7FFC7' },
+  { symbol: 'Pm', name: 'Promethium', number: 61, weight: 145, color: '#A3FFC7' },
+  { symbol: 'Sm', name: 'Samarium', number: 62, weight: 150, color: '#8FFFC7' },
+  { symbol: 'Eu', name: 'Europium', number: 63, weight: 152, color: '#61FFC7' },
+  { symbol: 'Gd', name: 'Gadolinium', number: 64, weight: 157, color: '#45FFC7' },
+  { symbol: 'Tb', name: 'Terbium', number: 65, weight: 159, color: '#30FFC7' },
+  { symbol: 'Dy', name: 'Dysprosium', number: 66, weight: 163, color: '#1FFFC7' },
+  { symbol: 'Ho', name: 'Holmium', number: 67, weight: 165, color: '#00FF9C' },
+  { symbol: 'Er', name: 'Erbium', number: 68, weight: 167, color: '#00E675' },
+  { symbol: 'Tm', name: 'Thulium', number: 69, weight: 169, color: '#00D452' },
+  { symbol: 'Yb', name: 'Ytterbium', number: 70, weight: 173, color: '#00BF38' },
+  { symbol: 'Lu', name: 'Lutetium', number: 71, weight: 175, color: '#00AB24' },
+  { symbol: 'Hf', name: 'Hafnium', number: 72, weight: 178, color: '#4DC2FF' },
+  { symbol: 'Ta', name: 'Tantalum', number: 73, weight: 181, color: '#4DA6FF' },
+  { symbol: 'W', name: 'Tungsten', number: 74, weight: 184, color: '#2194D6' },
+  { symbol: 'Re', name: 'Rhenium', number: 75, weight: 186, color: '#267DAB' },
+  { symbol: 'Os', name: 'Osmium', number: 76, weight: 190, color: '#266696' },
+  { symbol: 'Ir', name: 'Iridium', number: 77, weight: 192, color: '#175487' },
+  { symbol: 'Pt', name: 'Platinum', number: 78, weight: 195, color: '#D0D0E0' },
+  { symbol: 'Au', name: 'Gold', number: 79, weight: 197, color: '#FFD123' },
+  { symbol: 'Hg', name: 'Mercury', number: 80, weight: 201, color: '#B8B8D0' },
+  { symbol: 'Tl', name: 'Thallium', number: 81, weight: 204, color: '#A6544D' },
+  { symbol: 'Pb', name: 'Lead', number: 82, weight: 207, color: '#575961' },
+  { symbol: 'Bi', name: 'Bismuth', number: 83, weight: 209, color: '#9E4FB5' },
+  { symbol: 'Po', name: 'Polonium', number: 84, weight: 209, color: '#AB5C00' },
+  { symbol: 'At', name: 'Astatine', number: 85, weight: 210, color: '#754F45' },
+  { symbol: 'Rn', name: 'Radon', number: 86, weight: 222, color: '#428296' },
+  { symbol: 'Fr', name: 'Francium', number: 87, weight: 223, color: '#420066' },
+  { symbol: 'Ra', name: 'Radium', number: 88, weight: 226, color: '#007D00' },
+  { symbol: 'Ac', name: 'Actinium', number: 89, weight: 227, color: '#70ABFA' },
+  { symbol: 'Th', name: 'Thorium', number: 90, weight: 232, color: '#00BAFF' },
+  { symbol: 'Pa', name: 'Protactinium', number: 91, weight: 231, color: '#00A1FF' },
+  { symbol: 'U', name: 'Uranium', number: 92, weight: 238, color: '#008FFF' },
+  { symbol: 'Np', name: 'Neptunium', number: 93, weight: 237, color: '#0080FF' },
+  { symbol: 'Pu', name: 'Plutonium', number: 94, weight: 244, color: '#006BFF' },
+  { symbol: 'Am', name: 'Americium', number: 95, weight: 243, color: '#545CF2' },
+  { symbol: 'Cm', name: 'Curium', number: 96, weight: 247, color: '#785CE3' },
+  { symbol: 'Bk', name: 'Berkelium', number: 97, weight: 247, color: '#8A4FE3' },
+  { symbol: 'Cf', name: 'Californium', number: 98, weight: 251, color: '#A136D4' },
+  { symbol: 'Es', name: 'Einsteinium', number: 99, weight: 252, color: '#B31FD4' },
+  { symbol: 'Fm', name: 'Fermium', number: 100, weight: 257, color: '#B31FBA' },
+  { symbol: 'Md', name: 'Mendelevium', number: 101, weight: 258, color: '#B30DA6' },
+  { symbol: 'No', name: 'Nobelium', number: 102, weight: 259, color: '#BD0D87' },
+  { symbol: 'Lr', name: 'Lawrencium', number: 103, weight: 262, color: '#C70066' },
+  { symbol: 'Rf', name: 'Rutherfordium', number: 104, weight: 267, color: '#CC0059' },
+  { symbol: 'Db', name: 'Dubnium', number: 105, weight: 268, color: '#D1004F' },
+  { symbol: 'Sg', name: 'Seaborgium', number: 106, weight: 271, color: '#D90045' },
+  { symbol: 'Bh', name: 'Bohrium', number: 107, weight: 272, color: '#E00038' },
+  { symbol: 'Hs', name: 'Hassium', number: 108, weight: 270, color: '#E6002E' },
+  { symbol: 'Mt', name: 'Meitnerium', number: 109, weight: 276, color: '#EB0026' },
+  { symbol: 'Ds', name: 'Darmstadtium', number: 110, weight: 281, color: '#FF0000' },
+  { symbol: 'Rg', name: 'Roentgenium', number: 111, weight: 280, color: '#FF1A00' },
+  { symbol: 'Cn', name: 'Copernicium', number: 112, weight: 285, color: '#FF3300' },
+  { symbol: 'Nh', name: 'Nihonium', number: 113, weight: 284, color: '#FF4D00' },
+  { symbol: 'Fl', name: 'Flerovium', number: 114, weight: 289, color: '#FF6600' },
+  { symbol: 'Mc', name: 'Moscovium', number: 115, weight: 288, color: '#FF8000' },
+  { symbol: 'Lv', name: 'Livermorium', number: 116, weight: 293, color: '#FF9900' },
+  { symbol: 'Ts', name: 'Tennessine', number: 117, weight: 294, color: '#FFB300' },
+  { symbol: 'Og', name: 'Oganesson', number: 118, weight: 294, color: '#FFCC00' },
+];
+
+const GRID_SIZE = 6;
+
+export default function ElementSwapGame() {
+  const [grid, setGrid] = useState([]);
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(0);
+  const [selected, setSelected] = useState(null);
+  const [moves, setMoves] = useState(40);
+  const [gameOver, setGameOver] = useState(false);
+  const [gameOverReason, setGameOverReason] = useState('');
+  const [animating, setAnimating] = useState(false);
+  const [highlightedCells, setHighlightedCells] = useState([]);
+  const [hintCells, setHintCells] = useState([]);
+  const [targetCell, setTargetCell] = useState(null);
+  const [nukeMode, setNukeMode] = useState(false);
+  const [nukeTarget, setNukeTarget] = useState(null);
+
+  useEffect(() => {
+    resetGame();
+    const saved = localStorage.getItem('elementSwapHighScore');
+    if (saved) setHighScore(parseInt(saved));
+  }, []);
+
+  const createRandomGrid = () => {
+    const newGrid = [];
+    for (let i = 0; i < GRID_SIZE; i++) {
+      const row = [];
+      for (let j = 0; j < GRID_SIZE; j++) {
+        // Start with elements 1-4 only
+        row.push(Math.floor(Math.random() * 4) + 1);
+      }
+      newGrid.push(row);
+    }
+    return newGrid;
+  };
+
+  const getSpawnRange = (grid) => {
+    // Find highest element on board
+    let maxElement = 1;
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        if (grid[i][j] && grid[i][j] > maxElement) {
+          maxElement = grid[i][j];
+        }
+      }
+    }
+    
+    // Spawn range is first 4 elements, but shifts up as you progress
+    // Every 5 elements unlocked, increase minimum spawn by 1
+    const minSpawn = Math.max(1, Math.floor(maxElement / 5));
+    const maxSpawn = Math.min(minSpawn + 3, 4); // Keep range of 4 elements
+    
+    return { min: minSpawn, max: maxSpawn };
+  };
+
+  const resetGame = () => {
+    let newGrid = createRandomGrid();
+    // Clear any initial matches and ensure valid moves exist
+    while (hasMatches(newGrid).length > 0 || !hasValidMoves(newGrid)) {
+      newGrid = createRandomGrid();
+    }
+    setGrid(newGrid);
+    setScore(0);
+    setMoves(40);
+    setGameOver(false);
+    setGameOverReason('');
+    setSelected(null);
+    setHintCells([]);
+    setTargetCell(null);
+    setNukeMode(false);
+    setNukeTarget(null);
+  };
+
+  const findMatches = (grid) => {
+    const matches = [];
+    
+    // Check horizontal matches
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE - 2; j++) {
+        const value = grid[i][j];
+        if (value && grid[i][j + 1] === value && grid[i][j + 2] === value) {
+          const match = [[i, j], [i, j + 1], [i, j + 2]];
+          // Extend match if more tiles match
+          let k = j + 3;
+          while (k < GRID_SIZE && grid[i][k] === value) {
+            match.push([i, k]);
+            k++;
+          }
+          matches.push(match);
+          j = k - 1; // Skip past this match
+        }
+      }
+    }
+
+    // Check vertical matches
+    for (let j = 0; j < GRID_SIZE; j++) {
+      for (let i = 0; i < GRID_SIZE - 2; i++) {
+        const value = grid[i][j];
+        if (value && grid[i + 1][j] === value && grid[i + 2][j] === value) {
+          const match = [[i, j], [i + 1, j], [i + 2, j]];
+          // Extend match if more tiles match
+          let k = i + 3;
+          while (k < GRID_SIZE && grid[k][j] === value) {
+            match.push([k, j]);
+            k++;
+          }
+          matches.push(match);
+          i = k - 1; // Skip past this match
+        }
+      }
+    }
+
+    return matches;
+  };
+
+  const findElementByWeight = (targetWeight) => {
+    // Find element with closest atomic weight
+    let closest = ELEMENTS[0];
+    let minDiff = Math.abs(ELEMENTS[0].weight - targetWeight);
+    
+    for (let i = 1; i < ELEMENTS.length; i++) {
+      const diff = Math.abs(ELEMENTS[i].weight - targetWeight);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = ELEMENTS[i];
+      } else if (diff === minDiff && ELEMENTS[i].number > closest.number) {
+        // If same distance, use higher atomic number
+        closest = ELEMENTS[i];
+      }
+    }
+    
+    return closest.number;
+  };
+
+  const shuffleBoard = (grid) => {
+    // Collect all non-null tiles
+    const tiles = [];
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        if (grid[i][j] !== null) {
+          tiles.push(grid[i][j]);
+        }
+      }
+    }
+
+    // Shuffle tiles using Fisher-Yates
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+    }
+
+    // Place shuffled tiles back
+    const newGrid = createEmptyGrid();
+    let tileIndex = 0;
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        if (tileIndex < tiles.length) {
+          newGrid[i][j] = tiles[tileIndex];
+          tileIndex++;
+        }
+      }
+    }
+
+    return newGrid;
+  };
+
+  const createEmptyGrid = () => {
+    return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+  };
+
+  const hasMatches = (grid) => {
+    return findMatches(grid);
+  };
+
+  const hasValidMoves = (grid) => {
+    // Check every possible swap to see if any would create a match
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        // Try swapping right
+        if (j < GRID_SIZE - 1) {
+          const testGrid = grid.map(r => [...r]);
+          [testGrid[i][j], testGrid[i][j + 1]] = [testGrid[i][j + 1], testGrid[i][j]];
+          if (findMatches(testGrid).length > 0) return true;
+        }
+        // Try swapping down
+        if (i < GRID_SIZE - 1) {
+          const testGrid = grid.map(r => [...r]);
+          [testGrid[i][j], testGrid[i + 1][j]] = [testGrid[i + 1][j], testGrid[i][j]];
+          if (findMatches(testGrid).length > 0) return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  const findHintMove = () => {
+    // Find first valid swap that creates a match
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        // Try swapping right
+        if (j < GRID_SIZE - 1) {
+          const testGrid = grid.map(r => [...r]);
+          [testGrid[i][j], testGrid[i][j + 1]] = [testGrid[i][j + 1], testGrid[i][j]];
+          if (findMatches(testGrid).length > 0) {
+            return [[i, j], [i, j + 1]];
+          }
+        }
+        // Try swapping down
+        if (i < GRID_SIZE - 1) {
+          const testGrid = grid.map(r => [...r]);
+          [testGrid[i][j], testGrid[i + 1][j]] = [testGrid[i + 1][j], testGrid[i][j]];
+          if (findMatches(testGrid).length > 0) {
+            return [[i, j], [i + 1, j]];
+          }
+        }
+      }
+    }
+    return null;
+  };
+
+  const showHint = () => {
+    if (animating || gameOver) return;
+    
+    const hint = findHintMove();
+    if (hint) {
+      setHintCells(hint);
+      setTimeout(() => setHintCells([]), 3000); // Show hint for 3 seconds
+    }
+  };
+
+  const processMatches = async (grid, targetPos = null) => {
+    let newGrid = grid.map(r => [...r]);
+    let totalScore = 0;
+    let bonusMoves = 0;
+    let matchesFound = findMatches(newGrid);
+    let comboCount = 0;
+
+    while (matchesFound.length > 0) {
+      setAnimating(true);
+      comboCount++;
+
+      // Highlight matched cells
+      const allMatchedCells = matchesFound.flat();
+      setHighlightedCells(allMatchedCells);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      // Merge matches into higher elements based on atomic weight
+      matchesFound.forEach(match => {
+        const elementNumber = newGrid[match[0][0]][match[0][1]];
+        const element = ELEMENTS[elementNumber - 1];
+        
+        // Sum atomic weights of all matched tiles
+        const totalWeight = element.weight * match.length;
+        
+        // Find element with closest atomic weight
+        const newElementNumber = findElementByWeight(totalWeight);
+        
+        // Bonus moves for good matches (more generous)
+        if (match.length >= 4) bonusMoves += 2; // 4 match = +2 moves
+        if (match.length >= 5) bonusMoves += 2; // 5 match = +4 moves total
+        if (match.length >= 6) bonusMoves += 2; // 6+ match = +6 moves total
+        
+        // Clear matched tiles
+        match.forEach(([row, col]) => {
+          newGrid[row][col] = null;
+        });
+
+        // Place new element at target position if this is first combo and target exists
+        // Otherwise use last position in match
+        let resultPos;
+        if (comboCount === 1 && targetPos && match.some(([r, c]) => r === targetPos.row && c === targetPos.col)) {
+          resultPos = targetPos;
+        } else {
+          resultPos = { row: match[match.length - 1][0], col: match[match.length - 1][1] };
+        }
+        
+        newGrid[resultPos.row][resultPos.col] = newElementNumber;
+        totalScore += element.number * match.length * 10;
+      });
+
+      // Bonus move for combos (more generous)
+      if (comboCount >= 2) {
+        bonusMoves += 2; // Each cascade gives +2 moves
+      }
+
+      setHighlightedCells([]);
+      setGrid(newGrid);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Drop tiles down
+      for (let j = 0; j < GRID_SIZE; j++) {
+        let writePos = GRID_SIZE - 1;
+        for (let i = GRID_SIZE - 1; i >= 0; i--) {
+          if (newGrid[i][j] !== null) {
+            if (i !== writePos) {
+              newGrid[writePos][j] = newGrid[i][j];
+              newGrid[i][j] = null;
+            }
+            writePos--;
+          }
+        }
+      }
+
+      setGrid([...newGrid]);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // Fill empty spaces with new elements
+      for (let j = 0; j < GRID_SIZE; j++) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+          if (newGrid[i][j] === null) {
+            const spawnRange = getSpawnRange(newGrid);
+            newGrid[i][j] = Math.floor(Math.random() * (spawnRange.max - spawnRange.min + 1)) + spawnRange.min;
+          }
+        }
+      }
+
+      setGrid([...newGrid]);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      matchesFound = findMatches(newGrid);
+    }
+
+    setAnimating(false);
+    return { grid: newGrid, score: totalScore, bonusMoves };
+  };
+
+  const handleTileClick = async (row, col) => {
+    if (animating || gameOver) return;
+
+    // Handle nuke mode
+    if (nukeMode) {
+      await executeNuke(row, col);
+      return;
+    }
+
+    // Clear any active hints
+    setHintCells([]);
+
+    if (!selected) {
+      setSelected({ row, col });
+      return;
+    }
+
+    const { row: selRow, col: selCol } = selected;
+
+    // Check if adjacent
+    const isAdjacent = 
+      (Math.abs(row - selRow) === 1 && col === selCol) ||
+      (Math.abs(col - selCol) === 1 && row === selRow);
+
+    if (!isAdjacent) {
+      setSelected({ row, col });
+      return;
+    }
+
+    // Swap tiles
+    const newGrid = grid.map(r => [...r]);
+    [newGrid[row][col], newGrid[selRow][selCol]] = [newGrid[selRow][selCol], newGrid[row][col]];
+
+    // Check if this creates matches
+    const matches = findMatches(newGrid);
+
+    if (matches.length > 0) {
+      setGrid(newGrid);
+      setSelected(null);
+      setMoves(moves - 1);
+
+      // Target cell is the one that was clicked second (current row, col)
+      const targetPosition = { row, col };
+      const { grid: finalGrid, score: gainedScore, bonusMoves } = await processMatches(newGrid, targetPosition);
+      
+      const newScore = score + gainedScore;
+      setScore(newScore);
+      if (newScore > highScore) {
+        setHighScore(newScore);
+        localStorage.setItem('elementSwapHighScore', newScore.toString());
+      }
+
+      // Add bonus moves
+      const newMoves = moves - 1 + bonusMoves;
+      setMoves(newMoves);
+
+      // Check if game should end
+      if (newMoves <= 0) {
+        setGameOver(true);
+        setGameOverReason('No moves remaining');
+      } else if (!hasValidMoves(finalGrid) && newMoves < 5) {
+        // Only end if no valid moves AND can't afford a nuke
+        setGameOver(true);
+        setGameOverReason('No valid swaps available and insufficient moves for nuke');
+      }
+    } else {
+      // Swap back if no match
+      setSelected(null);
+    }
+  };
+
+  const getTileStyle = (value) => {
+    if (!value) return {};
+    const element = ELEMENTS[value - 1];
+    return {
+      backgroundColor: element.color,
+    };
+  };
+
+  const toggleNukeMode = () => {
+    if (moves < 5 || animating || gameOver) return;
+    setNukeMode(!nukeMode);
+    setNukeTarget(null);
+    setSelected(null);
+  };
+
+  const getNukeArea = (centerRow, centerCol) => {
+    // Get 3x3 area centered on the clicked tile
+    const affectedCells = [];
+    for (let i = centerRow - 1; i <= centerRow + 1; i++) {
+      for (let j = centerCol - 1; j <= centerCol + 1; j++) {
+        if (i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE) {
+          affectedCells.push([i, j]);
+        }
+      }
+    }
+    return affectedCells;
+  };
+
+  const executeNuke = async (centerRow, centerCol) => {
+    if (moves < 5 || animating) return;
+
+    setAnimating(true);
+    const affectedCells = getNukeArea(centerRow, centerCol);
+
+    // Calculate score penalty (sum of atomic weights)
+    let scorePenalty = 0;
+    affectedCells.forEach(([i, j]) => {
+      if (grid[i][j]) {
+        scorePenalty += ELEMENTS[grid[i][j] - 1].weight;
+      }
+    });
+
+    // Highlight affected area briefly
+    setHighlightedCells(affectedCells);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    
+    // Clear the 3x3 area
+    const newGrid = grid.map(r => [...r]);
+    affectedCells.forEach(([i, j]) => {
+      newGrid[i][j] = null;
+    });
+    
+    setHighlightedCells([]);
+    setGrid(newGrid);
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Drop tiles down
+    for (let j = 0; j < GRID_SIZE; j++) {
+      let writePos = GRID_SIZE - 1;
+      for (let i = GRID_SIZE - 1; i >= 0; i--) {
+        if (newGrid[i][j] !== null) {
+          if (i !== writePos) {
+            newGrid[writePos][j] = newGrid[i][j];
+            newGrid[i][j] = null;
+          }
+          writePos--;
+        }
+      }
+    }
+
+    setGrid([...newGrid]);
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Fill empty spaces
+    for (let j = 0; j < GRID_SIZE; j++) {
+      for (let i = 0; i < GRID_SIZE; i++) {
+        if (newGrid[i][j] === null) {
+          const spawnRange = getSpawnRange(newGrid);
+          newGrid[i][j] = Math.floor(Math.random() * (spawnRange.max - spawnRange.min + 1)) + spawnRange.min;
+        }
+      }
+    }
+
+    setGrid([...newGrid]);
+
+    // Deduct score and moves
+    const newScore = Math.max(0, score - scorePenalty);
+    setScore(newScore);
+    setMoves(moves - 5);
+
+    setNukeMode(false);
+    setNukeTarget(null);
+    setAnimating(false);
+
+    // Check if game ends - only if out of moves or (no valid moves AND can't nuke)
+    const finalMoves = moves - 5;
+    if (finalMoves <= 0) {
+      setGameOver(true);
+      setGameOverReason('No moves remaining');
+    } else if (!hasValidMoves(newGrid) && finalMoves < 5) {
+      setGameOver(true);
+      setGameOverReason('No valid swaps available and insufficient moves for nuke');
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+      <div className="max-w-lg w-full">
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Atom className="w-8 h-8 text-purple-600" />
+            <h1 className="text-3xl font-bold text-gray-800">Element Match</h1>
+          </div>
+          <p className="text-gray-600">Match 3+ elements to merge them!</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-4">
+          {!gameOver && !nukeMode && grid.length > 0 && !hasValidMoves(grid) && moves >= 5 && (
+            <div className="mb-4 p-3 bg-red-50 border-2 border-red-500 rounded-lg text-center">
+              <div className="text-red-700 font-bold flex items-center justify-center gap-2">
+                <Zap className="w-5 h-5" />
+                No valid swaps - use Nuke to continue!
+              </div>
+            </div>
+          )}
+          
+          <div className="flex justify-between items-center mb-6">
+            <div className="text-center flex-1">
+              <div className="text-2xl font-bold text-purple-600">{score}</div>
+              <div className="text-xs text-gray-500">Score</div>
+            </div>
+            <div className="text-center flex-1">
+              <div className="text-2xl font-bold text-blue-600">{moves}</div>
+              <div className="text-xs text-gray-500">Moves</div>
+            </div>
+            <div className="text-center flex-1">
+              <div className="flex items-center justify-center gap-1">
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <div className="text-2xl font-bold text-amber-600">{highScore}</div>
+              </div>
+              <div className="text-xs text-gray-500">Best</div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={showHint}
+                disabled={gameOver || animating || (grid.length > 0 && !hasValidMoves(grid))}
+                className="flex items-center gap-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Lightbulb className="w-4 h-4" />
+                Hint
+              </button>
+              <button
+                onClick={toggleNukeMode}
+                disabled={gameOver || animating || moves < 5}
+                className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  nukeMode 
+                    ? 'bg-red-600 text-white ring-2 ring-red-400' 
+                    : 'bg-orange-500 text-white hover:bg-orange-600'
+                }`}
+              >
+                <Zap className="w-4 h-4" />
+                Nuke (-5)
+              </button>
+              <button
+                onClick={resetGame}
+                className="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                <RotateCcw className="w-4 h-4" />
+                New
+              </button>
+            </div>
+          </div>
+
+          <div className="relative">
+            {/* Nuke mode banner */}
+            {nukeMode && (
+              <div className="mb-3 p-3 bg-orange-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2">
+                <Zap className="w-5 h-5" />
+                Click a tile to destroy 3×3 area
+                {nukeTarget && (() => {
+                  const area = getNukeArea(nukeTarget.row, nukeTarget.col);
+                  const penalty = area.reduce((sum, [i, j]) => {
+                    return sum + (grid[i][j] ? ELEMENTS[grid[i][j] - 1].weight : 0);
+                  }, 0);
+                  return <span className="ml-2">(-{penalty} pts, -5 moves)</span>;
+                })()}
+              </div>
+            )}
+
+            <div className="grid grid-cols-6 gap-1 mb-4 bg-gray-200 p-2 rounded-lg">
+            {grid.length > 0 && grid.map((row, i) =>
+              row.map((cell, j) => {
+                const isHighlighted = highlightedCells.some(([r, c]) => r === i && c === j);
+                const isHint = hintCells.some(([r, c]) => r === i && c === j);
+                
+                // Check if this tile is in nuke preview area
+                const isInNukeArea = nukeMode && nukeTarget && 
+                  getNukeArea(nukeTarget.row, nukeTarget.col).some(([r, c]) => r === i && c === j);
+                
+                return (
+                  <div
+                    key={`${i}-${j}`}
+                    onClick={() => handleTileClick(i, j)}
+                    onMouseEnter={() => nukeMode && setNukeTarget({ row: i, col: j })}
+                    onMouseLeave={() => nukeMode && setNukeTarget(null)}
+                    className={`aspect-square rounded cursor-pointer transition-all ${
+                      nukeMode
+                        ? isInNukeArea
+                          ? 'ring-4 ring-red-500 scale-105 bg-red-200'
+                          : 'opacity-50'
+                        : selected?.row === i && selected?.col === j
+                        ? 'ring-4 ring-purple-500 scale-105'
+                        : isHighlighted
+                        ? 'ring-4 ring-green-400 scale-110'
+                        : isHint
+                        ? 'ring-4 ring-yellow-400 scale-110 animate-pulse'
+                        : 'hover:scale-105'
+                    }`}
+                    style={getTileStyle(cell)}
+                  >
+                    {cell && (
+                      <div className="w-full h-full flex flex-col items-center justify-center">
+                        <div className="text-xl font-bold text-gray-700">
+                          {ELEMENTS[cell - 1].symbol}
+                        </div>
+                        <div className="text-[10px] text-gray-500">
+                          {ELEMENTS[cell - 1].weight}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          </div>
+
+          <div className="text-sm text-gray-600 text-center">
+            Swap adjacent tiles to match 3+ identical elements.<br />
+            <span className="font-semibold text-purple-700">Matched elements fuse based on total atomic mass!</span><br />
+            <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
+            <span className="text-xs text-green-600">Bonus moves: 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
+            <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span>
+          </div>
+        </div>
+
+        {gameOver && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center">
+              <div className="text-4xl font-bold text-purple-800 mb-4">Game Over!</div>
+              <div className="text-lg text-purple-600 mb-2">
+                {gameOverReason === 'No valid swaps available and insufficient moves for nuke' 
+                  ? 'No valid swaps and not enough moves to nuke!' 
+                  : gameOverReason}
+              </div>
+              <div className="text-2xl font-bold text-purple-700 mb-6">
+                Final Score: {score}
+              </div>
+              {score === highScore && score > 0 && (
+                <div className="text-amber-600 font-semibold mb-4 flex items-center justify-center gap-2">
+                  <Trophy className="w-5 h-5" />
+                  New High Score!
+                </div>
+              )}
+              <button
+                onClick={resetGame}
+                className="px-8 py-3 bg-purple-600 text-white text-lg rounded-lg hover:bg-purple-700 transition-colors"
+              >
+                Play Again
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow p-4 mt-4">
+          <div className="text-sm font-medium text-gray-700 mb-2">Progress:</div>
+          <div className="flex flex-wrap gap-2 items-center">
+            {grid.length > 0 && (() => {
+              const maxElement = Math.max(...grid.flat().filter(Boolean), 1);
+              const displayElements = [];
+              
+              // Show last 5 elements leading up to current max
+              for (let i = Math.max(1, maxElement - 4); i <= maxElement; i++) {
+                displayElements.push(ELEMENTS[i - 1]);
+              }
+              
+              return displayElements.map((el, idx) => (
+                <div
+                  key={idx}
+                  className={`px-3 py-2 rounded text-sm font-medium border ${
+                    el.number === maxElement ? 'ring-2 ring-purple-500 scale-110' : ''
+                  }`}
+                  style={{ backgroundColor: el.color, borderColor: '#999' }}
+                >
+                  <div className="font-bold">{el.symbol}</div>
+                  <div className="text-xs">{el.name} ({el.weight})</div>
+                </div>
+              ));
+            })()}
+            {grid.length > 0 && (
+              <div className="text-sm text-gray-500 ml-2">
+                Highest: <span className="font-bold text-purple-600">
+                  {ELEMENTS[Math.max(...grid.flat().filter(Boolean), 1) - 1]?.symbol} 
+                  ({ELEMENTS[Math.max(...grid.flat().filter(Boolean), 1) - 1]?.number})
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
