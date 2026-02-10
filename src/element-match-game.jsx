@@ -631,7 +631,7 @@ export default function ElementSwapGame() {
         <div className="text-center mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
             <Atom className="w-8 h-8 text-purple-600" />
-            <h1 className="text-3xl font-bold text-gray-800">Element Match</h1>
+            <h1 className="text-3xl font-bold text-gray-800">Fusion Tiles</h1>
           </div>
           <p className="text-gray-600">Match 3+ elements to merge them!</p>
         </div>
@@ -646,51 +646,52 @@ export default function ElementSwapGame() {
             </div>
           )}
           
-          <div className="flex justify-between items-center mb-6">
-            <div className="text-center flex-1">
+          <div className="flex justify-around items-center mb-4">
+            <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">{score}</div>
               <div className="text-xs text-gray-500">Score</div>
             </div>
-            <div className="text-center flex-1">
+            <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">{moves}</div>
               <div className="text-xs text-gray-500">Moves</div>
             </div>
-            <div className="text-center flex-1">
+            <div className="text-center">
               <div className="flex items-center justify-center gap-1">
                 <Trophy className="w-4 h-4 text-amber-500" />
                 <div className="text-2xl font-bold text-amber-600">{highScore}</div>
               </div>
               <div className="text-xs text-gray-500">Best</div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={showHint}
-                disabled={gameOver || animating || (grid.length > 0 && !hasValidMoves(grid))}
-                className="flex items-center gap-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Lightbulb className="w-4 h-4" />
-                Hint
-              </button>
-              <button
-                onClick={toggleNukeMode}
-                disabled={gameOver || animating || moves < 5}
-                className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  nukeMode 
-                    ? 'bg-red-600 text-white ring-2 ring-red-400' 
-                    : 'bg-orange-500 text-white hover:bg-orange-600'
-                }`}
-              >
-                <Zap className="w-4 h-4" />
-                Nuke (-5)
-              </button>
-              <button
-                onClick={resetGame}
-                className="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                <RotateCcw className="w-4 h-4" />
-                New
-              </button>
-            </div>
+          </div>
+
+          <div className="flex justify-center gap-2 mb-4">
+            <button
+              onClick={showHint}
+              disabled={gameOver || animating || (grid.length > 0 && !hasValidMoves(grid))}
+              className="flex items-center gap-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Lightbulb className="w-4 h-4" />
+              Hint
+            </button>
+            <button
+              onClick={toggleNukeMode}
+              disabled={gameOver || animating || moves < 5}
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                nukeMode
+                  ? 'bg-red-600 text-white ring-2 ring-red-400'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              Nuke (-5)
+            </button>
+            <button
+              onClick={resetGame}
+              className="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <RotateCcw className="w-4 h-4" />
+              New
+            </button>
           </div>
 
           <div className="relative">
