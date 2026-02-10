@@ -169,12 +169,12 @@ export default function ElementSwapGame() {
         }
       }
     }
-    
-    // Spawn range is first 4 elements, but shifts up as you progress
-    // Every 5 elements unlocked, increase minimum spawn by 1
-    const minSpawn = Math.max(1, Math.floor(maxElement / 5));
-    const maxSpawn = Math.min(minSpawn + 3, 4); // Keep range of 4 elements
-    
+
+    // Spawn range shifts up slowly as you progress
+    // Every 8 elements unlocked, increase minimum spawn by 1
+    const minSpawn = Math.max(1, Math.floor(maxElement / 8));
+    const maxSpawn = Math.min(minSpawn + 4, ELEMENTS.length); // Range of 5 elements
+
     return { min: minSpawn, max: maxSpawn };
   };
 
@@ -380,10 +380,11 @@ export default function ElementSwapGame() {
         // Find element with closest atomic weight
         const newElementNumber = findElementByWeight(totalWeight);
         
-        // Bonus moves for good matches (more generous)
-        if (match.length >= 4) bonusMoves += 2; // 4 match = +2 moves
-        if (match.length >= 5) bonusMoves += 2; // 5 match = +4 moves total
-        if (match.length >= 6) bonusMoves += 2; // 6+ match = +6 moves total
+        // Bonus moves for matches
+        bonusMoves += 1; // Every match returns 1 move (net zero for basic 3-match)
+        if (match.length >= 4) bonusMoves += 1; // 4 match = +2 total
+        if (match.length >= 5) bonusMoves += 2; // 5 match = +4 total
+        if (match.length >= 6) bonusMoves += 2; // 6+ match = +6 total
         
         // Clear matched tiles
         match.forEach(([row, col]) => {
@@ -509,10 +510,20 @@ export default function ElementSwapGame() {
       if (newMoves <= 0) {
         setGameOver(true);
         setGameOverReason('No moves remaining');
-      } else if (!hasValidMoves(finalGrid) && newMoves < 5) {
-        // Only end if no valid moves AND can't afford a nuke
-        setGameOver(true);
-        setGameOverReason('No valid swaps available and insufficient moves for nuke');
+      } else if (!hasValidMoves(finalGrid)) {
+        // Auto-shuffle the board to keep momentum going
+        let shuffled = shuffleBoard(finalGrid);
+        let shuffleAttempts = 0;
+        while (!hasValidMoves(shuffled) && shuffleAttempts < 10) {
+          shuffled = shuffleBoard(finalGrid);
+          shuffleAttempts++;
+        }
+        if (hasValidMoves(shuffled)) {
+          setGrid(shuffled);
+        } else {
+          setGameOver(true);
+          setGameOverReason('No valid swaps available');
+        }
       }
     } else {
       // Swap back if no match
@@ -614,14 +625,25 @@ export default function ElementSwapGame() {
     setNukeTarget(null);
     setAnimating(false);
 
-    // Check if game ends - only if out of moves or (no valid moves AND can't nuke)
+    // Check if game ends or needs shuffle
     const finalMoves = moves - 5;
     if (finalMoves <= 0) {
       setGameOver(true);
       setGameOverReason('No moves remaining');
-    } else if (!hasValidMoves(newGrid) && finalMoves < 5) {
-      setGameOver(true);
-      setGameOverReason('No valid swaps available and insufficient moves for nuke');
+    } else if (!hasValidMoves(newGrid)) {
+      // Auto-shuffle the board to keep momentum going
+      let shuffled = shuffleBoard(newGrid);
+      let shuffleAttempts = 0;
+      while (!hasValidMoves(shuffled) && shuffleAttempts < 10) {
+        shuffled = shuffleBoard(newGrid);
+        shuffleAttempts++;
+      }
+      if (hasValidMoves(shuffled)) {
+        setGrid(shuffled);
+      } else {
+        setGameOver(true);
+        setGameOverReason('No valid swaps available');
+      }
     }
   };
 
@@ -637,14 +659,7 @@ export default function ElementSwapGame() {
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6 mb-4">
-          {!gameOver && !nukeMode && grid.length > 0 && !hasValidMoves(grid) && moves >= 5 && (
-            <div className="mb-4 p-3 bg-red-50 border-2 border-red-500 rounded-lg text-center">
-              <div className="text-red-700 font-bold flex items-center justify-center gap-2">
-                <Zap className="w-5 h-5" />
-                No valid swaps - use Nuke to continue!
-              </div>
-            </div>
-          )}
+          {/* Board auto-shuffles when no valid swaps exist */}
           
           <div className="flex justify-around items-center mb-4">
             <div className="text-center">
@@ -667,7 +682,7 @@ export default function ElementSwapGame() {
           <div className="flex justify-center gap-2 mb-4">
             <button
               onClick={showHint}
-              disabled={gameOver || animating || (grid.length > 0 && !hasValidMoves(grid))}
+              disabled={gameOver || animating}
               className="flex items-center gap-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Lightbulb className="w-4 h-4" />
@@ -762,7 +777,7 @@ export default function ElementSwapGame() {
             Swap adjacent tiles to match 3+ identical elements.<br />
             <span className="font-semibold text-purple-700">Matched elements fuse based on total atomic mass!</span><br />
             <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
-            <span className="text-xs text-green-600">Bonus moves: 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
+            <span className="text-xs text-green-600">Bonus moves: 3 match (+1), 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span>
           </div>
         </div>
@@ -772,9 +787,7 @@ export default function ElementSwapGame() {
             <div className="bg-white rounded-xl shadow-2xl p-8 max-w-md mx-4 text-center">
               <div className="text-4xl font-bold text-purple-800 mb-4">Game Over!</div>
               <div className="text-lg text-purple-600 mb-2">
-                {gameOverReason === 'No valid swaps available and insufficient moves for nuke' 
-                  ? 'No valid swaps and not enough moves to nuke!' 
-                  : gameOverReason}
+                {gameOverReason}
               </div>
               <div className="text-2xl font-bold text-purple-700 mb-6">
                 Final Score: {score}
