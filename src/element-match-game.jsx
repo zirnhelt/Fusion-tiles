@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Atom, RotateCcw, Trophy, Lightbulb, Zap, Shuffle, AlertTriangle } from 'lucide-react';
+import { Atom, RotateCcw, Trophy, Lightbulb, Zap, AlertTriangle } from 'lucide-react';
 
 // All 118 elements with atomic weights (rounded to nearest integer)
 const ELEMENTS = [
@@ -139,7 +139,6 @@ export default function ElementSwapGame() {
   const [targetCell, setTargetCell] = useState(null);
   const [nukeMode, setNukeMode] = useState(false);
   const [nukeTarget, setNukeTarget] = useState(null);
-  const [needsShuffle, setNeedsShuffle] = useState(false);
 
   useEffect(() => {
     resetGame();
@@ -195,7 +194,6 @@ export default function ElementSwapGame() {
     setTargetCell(null);
     setNukeMode(false);
     setNukeTarget(null);
-    setNeedsShuffle(false);
   };
 
   const findMatches = (grid) => {
@@ -259,37 +257,6 @@ export default function ElementSwapGame() {
     return closest.number;
   };
 
-  const shuffleBoard = (grid) => {
-    // Collect all non-null tiles
-    const tiles = [];
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        if (grid[i][j] !== null) {
-          tiles.push(grid[i][j]);
-        }
-      }
-    }
-
-    // Shuffle tiles using Fisher-Yates
-    for (let i = tiles.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
-    }
-
-    // Place shuffled tiles back
-    const newGrid = createEmptyGrid();
-    let tileIndex = 0;
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        if (tileIndex < tiles.length) {
-          newGrid[i][j] = tiles[tileIndex];
-          tileIndex++;
-        }
-      }
-    }
-
-    return newGrid;
-  };
 
   const createEmptyGrid = () => {
     return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
@@ -355,23 +322,6 @@ export default function ElementSwapGame() {
     }
   };
 
-  const handleShuffle = () => {
-    if (!needsShuffle || animating || gameOver) return;
-
-    let shuffled = shuffleBoard(grid);
-    let attempts = 0;
-    while (!hasValidMoves(shuffled) && attempts < 10) {
-      shuffled = shuffleBoard(grid);
-      attempts++;
-    }
-    if (hasValidMoves(shuffled)) {
-      setGrid(shuffled);
-      setNeedsShuffle(false);
-    } else {
-      setGameOver(true);
-      setGameOverReason('No valid swaps available');
-    }
-  };
 
   const processMatches = async (grid, targetPos = null) => {
     let newGrid = grid.map(r => [...r]);
@@ -473,13 +423,10 @@ export default function ElementSwapGame() {
   const handleTileClick = async (row, col) => {
     if (animating || gameOver) return;
 
-    // Handle nuke mode - allow nuking even when needsShuffle
     if (nukeMode) {
       await executeNuke(row, col);
       return;
     }
-
-    if (needsShuffle) return;
 
     // Clear any active hints
     setHintCells([]);
@@ -532,12 +479,17 @@ export default function ElementSwapGame() {
       if (newMoves <= 0) {
         setGameOver(true);
         setGameOverReason('No moves remaining');
-      } else if (!hasValidMoves(finalGrid)) {
-        setNeedsShuffle(true);
       }
     } else {
-      // Swap back if no match
+      // Non-merging move: apply swap, still costs a move
+      setGrid(newGrid);
       setSelected(null);
+      const newMoves = moves - 1;
+      setMoves(newMoves);
+      if (newMoves <= 0) {
+        setGameOver(true);
+        setGameOverReason('No moves remaining');
+      }
     }
   };
 
@@ -633,16 +585,12 @@ export default function ElementSwapGame() {
 
     setNukeMode(false);
     setNukeTarget(null);
-    setNeedsShuffle(false);
     setAnimating(false);
 
-    // Check if game ends or needs shuffle
     const finalMoves = moves - 5;
     if (finalMoves <= 0) {
       setGameOver(true);
       setGameOverReason('No moves remaining');
-    } else if (!hasValidMoves(newGrid)) {
-      setNeedsShuffle(true);
     }
   };
 
@@ -700,7 +648,7 @@ export default function ElementSwapGame() {
           </div>
 
           {/* Low moves warning */}
-          {!gameOver && !needsShuffle && moves > 0 && moves <= 5 && (
+          {!gameOver && moves > 0 && moves <= 5 && (
             <div className={`mb-3 p-2 text-center rounded-lg font-semibold flex items-center justify-center gap-2 ${
               moves <= 3
                 ? 'bg-red-100 text-red-700 border border-red-300 animate-pulse'
@@ -712,14 +660,6 @@ export default function ElementSwapGame() {
           )}
 
           <div className="relative">
-            {/* Shuffle needed banner */}
-            {needsShuffle && !nukeMode && (
-              <div className="mb-3 p-3 bg-indigo-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 animate-pulse">
-                <Shuffle className="w-5 h-5" />
-                No valid moves! Shuffle or Nuke to continue.
-              </div>
-            )}
-
             {/* Nuke mode banner */}
             {nukeMode && (
               <div className="mb-3 p-3 bg-orange-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2">
@@ -789,25 +729,11 @@ export default function ElementSwapGame() {
               className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 nukeMode
                   ? 'bg-red-600 text-white ring-2 ring-red-400'
-                  : needsShuffle && moves >= 5
-                    ? 'bg-orange-500 text-white hover:bg-orange-600 animate-pulse'
-                    : 'bg-orange-500 text-white hover:bg-orange-600'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
               }`}
             >
               <Zap className="w-4 h-4" />
               Nuke
-            </button>
-            <button
-              onClick={handleShuffle}
-              disabled={!needsShuffle || gameOver || animating}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                needsShuffle
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-pulse'
-                  : 'bg-indigo-400 text-white'
-              }`}
-            >
-              <Shuffle className="w-4 h-4" />
-              Shuffle
             </button>
           </div>
           </div>
@@ -818,7 +744,7 @@ export default function ElementSwapGame() {
             <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
             <span className="text-xs text-green-600">Bonus moves: 3 match (+1), 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
-            <span className="text-xs text-indigo-600">No valid moves? Use Shuffle to rearrange the board</span>
+            <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span>
           </div>
         </div>
 
