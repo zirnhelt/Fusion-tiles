@@ -471,13 +471,15 @@ export default function ElementSwapGame() {
   };
 
   const handleTileClick = async (row, col) => {
-    if (animating || gameOver || needsShuffle) return;
+    if (animating || gameOver) return;
 
-    // Handle nuke mode
+    // Handle nuke mode - allow nuking even when needsShuffle
     if (nukeMode) {
       await executeNuke(row, col);
       return;
     }
+
+    if (needsShuffle) return;
 
     // Clear any active hints
     setHintCells([]);
@@ -631,6 +633,7 @@ export default function ElementSwapGame() {
 
     setNukeMode(false);
     setNukeTarget(null);
+    setNeedsShuffle(false);
     setAnimating(false);
 
     // Check if game ends or needs shuffle
@@ -710,10 +713,10 @@ export default function ElementSwapGame() {
 
           <div className="relative">
             {/* Shuffle needed banner */}
-            {needsShuffle && (
+            {needsShuffle && !nukeMode && (
               <div className="mb-3 p-3 bg-indigo-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 animate-pulse">
                 <Shuffle className="w-5 h-5" />
-                No valid moves! Press Shuffle to continue.
+                No valid moves! Shuffle or Nuke to continue.
               </div>
             )}
 
@@ -786,7 +789,9 @@ export default function ElementSwapGame() {
               className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 nukeMode
                   ? 'bg-red-600 text-white ring-2 ring-red-400'
-                  : 'bg-orange-500 text-white hover:bg-orange-600'
+                  : needsShuffle && moves >= 5
+                    ? 'bg-orange-500 text-white hover:bg-orange-600 animate-pulse'
+                    : 'bg-orange-500 text-white hover:bg-orange-600'
               }`}
             >
               <Zap className="w-4 h-4" />
