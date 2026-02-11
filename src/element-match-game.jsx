@@ -471,13 +471,15 @@ export default function ElementSwapGame() {
   };
 
   const handleTileClick = async (row, col) => {
-    if (animating || gameOver || needsShuffle) return;
+    if (animating || gameOver) return;
 
-    // Handle nuke mode
+    // Handle nuke mode (allowed even when board is blocked)
     if (nukeMode) {
       await executeNuke(row, col);
       return;
     }
+
+    if (needsShuffle) return;
 
     // Clear any active hints
     setHintCells([]);
@@ -638,7 +640,9 @@ export default function ElementSwapGame() {
     if (finalMoves <= 0) {
       setGameOver(true);
       setGameOverReason('No moves remaining');
-    } else if (!hasValidMoves(newGrid)) {
+    } else if (hasValidMoves(newGrid)) {
+      setNeedsShuffle(false);
+    } else {
       setNeedsShuffle(true);
     }
   };
