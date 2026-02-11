@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Atom, RotateCcw, Trophy, Lightbulb, Zap } from 'lucide-react';
+import { Atom, RotateCcw, Trophy, Lightbulb, Zap, Shuffle, AlertTriangle } from 'lucide-react';
 
 // All 118 elements with atomic weights (rounded to nearest integer)
 const ELEMENTS = [
@@ -139,6 +139,7 @@ export default function ElementSwapGame() {
   const [targetCell, setTargetCell] = useState(null);
   const [nukeMode, setNukeMode] = useState(false);
   const [nukeTarget, setNukeTarget] = useState(null);
+  const [needsShuffle, setNeedsShuffle] = useState(false);
 
   useEffect(() => {
     resetGame();
@@ -194,6 +195,7 @@ export default function ElementSwapGame() {
     setTargetCell(null);
     setNukeMode(false);
     setNukeTarget(null);
+    setNeedsShuffle(false);
   };
 
   const findMatches = (grid) => {
@@ -353,6 +355,24 @@ export default function ElementSwapGame() {
     }
   };
 
+  const handleShuffle = () => {
+    if (!needsShuffle || animating || gameOver) return;
+
+    let shuffled = shuffleBoard(grid);
+    let attempts = 0;
+    while (!hasValidMoves(shuffled) && attempts < 10) {
+      shuffled = shuffleBoard(grid);
+      attempts++;
+    }
+    if (hasValidMoves(shuffled)) {
+      setGrid(shuffled);
+      setNeedsShuffle(false);
+    } else {
+      setGameOver(true);
+      setGameOverReason('No valid swaps available');
+    }
+  };
+
   const processMatches = async (grid, targetPos = null) => {
     let newGrid = grid.map(r => [...r]);
     let totalScore = 0;
@@ -451,7 +471,7 @@ export default function ElementSwapGame() {
   };
 
   const handleTileClick = async (row, col) => {
-    if (animating || gameOver) return;
+    if (animating || gameOver || needsShuffle) return;
 
     // Handle nuke mode
     if (nukeMode) {
@@ -511,19 +531,7 @@ export default function ElementSwapGame() {
         setGameOver(true);
         setGameOverReason('No moves remaining');
       } else if (!hasValidMoves(finalGrid)) {
-        // Auto-shuffle the board to keep momentum going
-        let shuffled = shuffleBoard(finalGrid);
-        let shuffleAttempts = 0;
-        while (!hasValidMoves(shuffled) && shuffleAttempts < 10) {
-          shuffled = shuffleBoard(finalGrid);
-          shuffleAttempts++;
-        }
-        if (hasValidMoves(shuffled)) {
-          setGrid(shuffled);
-        } else {
-          setGameOver(true);
-          setGameOverReason('No valid swaps available');
-        }
+        setNeedsShuffle(true);
       }
     } else {
       // Swap back if no match
@@ -631,19 +639,7 @@ export default function ElementSwapGame() {
       setGameOver(true);
       setGameOverReason('No moves remaining');
     } else if (!hasValidMoves(newGrid)) {
-      // Auto-shuffle the board to keep momentum going
-      let shuffled = shuffleBoard(newGrid);
-      let shuffleAttempts = 0;
-      while (!hasValidMoves(shuffled) && shuffleAttempts < 10) {
-        shuffled = shuffleBoard(newGrid);
-        shuffleAttempts++;
-      }
-      if (hasValidMoves(shuffled)) {
-        setGrid(shuffled);
-      } else {
-        setGameOver(true);
-        setGameOverReason('No valid swaps available');
-      }
+      setNeedsShuffle(true);
     }
   };
 
@@ -659,16 +655,19 @@ export default function ElementSwapGame() {
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-6 mb-4">
-          {/* Board auto-shuffles when no valid swaps exist */}
-          
           <div className="flex justify-around items-center mb-4">
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">{score}</div>
               <div className="text-xs text-gray-500">Score</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{moves}</div>
-              <div className="text-xs text-gray-500">Moves</div>
+              <div className={`text-2xl font-bold ${
+                moves <= 3 ? 'text-red-600 animate-pulse' :
+                moves <= 5 ? 'text-red-500' :
+                moves <= 10 ? 'text-orange-500' :
+                'text-blue-600'
+              }`}>{moves}</div>
+              <div className="text-xs text-gray-500">Moves Left</div>
             </div>
             <div className="text-center">
               <div className="flex items-center justify-center gap-1">
@@ -701,6 +700,18 @@ export default function ElementSwapGame() {
               Nuke (-5)
             </button>
             <button
+              onClick={handleShuffle}
+              disabled={!needsShuffle || gameOver || animating}
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                needsShuffle
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-pulse'
+                  : 'bg-indigo-400 text-white'
+              }`}
+            >
+              <Shuffle className="w-4 h-4" />
+              Shuffle
+            </button>
+            <button
               onClick={resetGame}
               className="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
@@ -709,7 +720,27 @@ export default function ElementSwapGame() {
             </button>
           </div>
 
+          {/* Low moves warning */}
+          {!gameOver && !needsShuffle && moves > 0 && moves <= 5 && (
+            <div className={`mb-3 p-2 text-center rounded-lg font-semibold flex items-center justify-center gap-2 ${
+              moves <= 3
+                ? 'bg-red-100 text-red-700 border border-red-300 animate-pulse'
+                : 'bg-amber-100 text-amber-700 border border-amber-300'
+            }`}>
+              <AlertTriangle className="w-4 h-4" />
+              {moves <= 3 ? `Only ${moves} move${moves === 1 ? '' : 's'} left!` : `${moves} moves remaining`}
+            </div>
+          )}
+
           <div className="relative">
+            {/* Shuffle needed banner */}
+            {needsShuffle && (
+              <div className="mb-3 p-3 bg-indigo-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 animate-pulse">
+                <Shuffle className="w-5 h-5" />
+                No valid moves! Press Shuffle to continue.
+              </div>
+            )}
+
             {/* Nuke mode banner */}
             {nukeMode && (
               <div className="mb-3 p-3 bg-orange-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2">
@@ -778,7 +809,8 @@ export default function ElementSwapGame() {
             <span className="font-semibold text-purple-700">Matched elements fuse based on total atomic mass!</span><br />
             <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
             <span className="text-xs text-green-600">Bonus moves: 3 match (+1), 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
-            <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span>
+            <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
+            <span className="text-xs text-indigo-600">No valid moves? Use Shuffle to rearrange the board</span>
           </div>
         </div>
 
