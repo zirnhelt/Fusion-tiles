@@ -688,30 +688,6 @@ export default function ElementSwapGame() {
               Hint
             </button>
             <button
-              onClick={toggleNukeMode}
-              disabled={gameOver || animating || moves < 5}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                nukeMode
-                  ? 'bg-red-600 text-white ring-2 ring-red-400'
-                  : 'bg-orange-500 text-white hover:bg-orange-600'
-              }`}
-            >
-              <Zap className="w-4 h-4" />
-              Nuke (-5)
-            </button>
-            <button
-              onClick={handleShuffle}
-              disabled={!needsShuffle || gameOver || animating}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                needsShuffle
-                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-pulse'
-                  : 'bg-indigo-400 text-white'
-              }`}
-            >
-              <Shuffle className="w-4 h-4" />
-              Shuffle
-            </button>
-            <button
               onClick={resetGame}
               className="flex items-center gap-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
@@ -801,6 +777,33 @@ export default function ElementSwapGame() {
                 );
               })
             )}
+          </div>
+
+          <div className="flex justify-center gap-2 mt-3">
+            <button
+              onClick={toggleNukeMode}
+              disabled={gameOver || animating || moves < 5}
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                nukeMode
+                  ? 'bg-red-600 text-white ring-2 ring-red-400'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              Nuke
+            </button>
+            <button
+              onClick={handleShuffle}
+              disabled={!needsShuffle || gameOver || animating}
+              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                needsShuffle
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700 animate-pulse'
+                  : 'bg-indigo-400 text-white'
+              }`}
+            >
+              <Shuffle className="w-4 h-4" />
+              Shuffle
+            </button>
           </div>
           </div>
 
