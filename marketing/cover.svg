@@ -1,0 +1,214 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 630 500" width="630" height="500">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="630" y2="500" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#070c1a"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+
+    <radialGradient id="bgGlow" cx="315" cy="260" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1a3a6a" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#070c1a" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Orange glow for matched Fe tiles -->
+    <filter id="matchGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="2 0.8 0 0 0
+                0.4 0.2 0 0 0
+                0   0   0 0 0
+                0   0   0 1 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Blue title glow -->
+    <filter id="titleGlow" x="-15%" y="-80%" width="130%" height="260%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="14" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0.1 0 0 0 0.2
+                0.3 0 0 0 0.5
+                1   0 0 0 1
+                0   0 0 0.55 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Tile drop shadow -->
+    <filter id="shadow" x="-8%" y="-8%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#000" flood-opacity="0.65"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="630" height="500" fill="url(#bg)"/>
+  <rect width="630" height="500" fill="url(#bgGlow)"/>
+
+  <!-- Stars -->
+  <circle cx="42"  cy="22"  r="1.5" fill="white" opacity="0.28"/>
+  <circle cx="178" cy="12"  r="1"   fill="white" opacity="0.22"/>
+  <circle cx="384" cy="19"  r="1.5" fill="white" opacity="0.18"/>
+  <circle cx="578" cy="14"  r="1"   fill="white" opacity="0.25"/>
+  <circle cx="598" cy="72"  r="2"   fill="white" opacity="0.13"/>
+  <circle cx="16"  cy="185" r="1"   fill="white" opacity="0.18"/>
+  <circle cx="614" cy="265" r="1.5" fill="white" opacity="0.12"/>
+  <circle cx="20"  cy="408" r="1"   fill="white" opacity="0.18"/>
+  <circle cx="610" cy="445" r="2"   fill="white" opacity="0.10"/>
+  <circle cx="108" cy="488" r="1"   fill="white" opacity="0.16"/>
+  <circle cx="522" cy="484" r="1.5" fill="white" opacity="0.20"/>
+  <circle cx="298" cy="8"   r="1"   fill="white" opacity="0.18"/>
+  <circle cx="460" cy="488" r="1"   fill="white" opacity="0.14"/>
+
+  <!-- ── TITLE ── -->
+  <!-- Glow pass -->
+  <text x="315" y="80"
+    text-anchor="middle"
+    font-family="'Arial Black', Impact, Arial, sans-serif"
+    font-weight="900"
+    font-size="60"
+    fill="white"
+    filter="url(#titleGlow)"
+    letter-spacing="4">FUSION TILES</text>
+  <!-- Solid pass -->
+  <text x="315" y="80"
+    text-anchor="middle"
+    font-family="'Arial Black', Impact, Arial, sans-serif"
+    font-weight="900"
+    font-size="60"
+    fill="white"
+    letter-spacing="4">FUSION TILES</text>
+
+  <!-- Atom accents -->
+  <text x="64"  y="78" text-anchor="middle" font-size="32" opacity="0.5">⚛</text>
+  <text x="566" y="78" text-anchor="middle" font-size="32" opacity="0.5">⚛</text>
+
+  <!-- Subtitle -->
+  <text x="315" y="112"
+    text-anchor="middle"
+    font-family="Arial, sans-serif"
+    font-size="12"
+    fill="#475569"
+    letter-spacing="5.5">MATCH  ·  MERGE  ·  ADVANCE THE TABLE</text>
+
+  <!-- ── TILE GRID ──
+       Tile: 80×80, gap: 8
+       Cols (x): 99 187 275 363 451
+       Rows (y): 130 218 306
+       Fe match tiles raised to y=123
+  -->
+
+  <!-- ══ ROW 0 ══ -->
+
+  <!-- He · Helium · #D5E8F7 -->
+  <rect x="99" y="130" width="80" height="80" rx="8" fill="#D5E8F7" filter="url(#shadow)"/>
+  <text x="106" y="144" font-family="Arial" font-size="11" fill="#1a3a5a" opacity="0.75">2</text>
+  <text x="139" y="183" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#0a1a2a">He</text>
+  <text x="139" y="199" text-anchor="middle" font-family="Arial" font-size="9" fill="#1a3a5a" opacity="0.65">Helium</text>
+
+  <!-- Ne · Neon · #FFCCE5 -->
+  <rect x="187" y="130" width="80" height="80" rx="8" fill="#FFCCE5" filter="url(#shadow)"/>
+  <text x="194" y="144" font-family="Arial" font-size="11" fill="#5a1a3a" opacity="0.75">10</text>
+  <text x="227" y="183" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#3a0a1a">Ne</text>
+  <text x="227" y="199" text-anchor="middle" font-family="Arial" font-size="9" fill="#5a1a3a" opacity="0.65">Neon</text>
+
+  <!-- Fe · Iron · #E06633 — MATCHED (raised + glow) -->
+  <rect x="275" y="123" width="80" height="80" rx="8" fill="#E06633" filter="url(#matchGlow)"/>
+  <text x="282" y="137" font-family="Arial" font-size="11" fill="white" opacity="0.85">26</text>
+  <text x="315" y="176" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="white">Fe</text>
+  <text x="315" y="192" text-anchor="middle" font-family="Arial" font-size="9" fill="white" opacity="0.80">Iron</text>
+
+  <!-- Fe · Iron · #E06633 — MATCHED -->
+  <rect x="363" y="123" width="80" height="80" rx="8" fill="#E06633" filter="url(#matchGlow)"/>
+  <text x="370" y="137" font-family="Arial" font-size="11" fill="white" opacity="0.85">26</text>
+  <text x="403" y="176" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="white">Fe</text>
+  <text x="403" y="192" text-anchor="middle" font-family="Arial" font-size="9" fill="white" opacity="0.80">Iron</text>
+
+  <!-- Fe · Iron · #E06633 — MATCHED -->
+  <rect x="451" y="123" width="80" height="80" rx="8" fill="#E06633" filter="url(#matchGlow)"/>
+  <text x="458" y="137" font-family="Arial" font-size="11" fill="white" opacity="0.85">26</text>
+  <text x="491" y="176" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="white">Fe</text>
+  <text x="491" y="192" text-anchor="middle" font-family="Arial" font-size="9" fill="white" opacity="0.80">Iron</text>
+
+  <!-- ══ ROW 1 ══ -->
+
+  <!-- Cu · Copper · #C88033 (dark → white text) -->
+  <rect x="99" y="218" width="80" height="80" rx="8" fill="#C88033" filter="url(#shadow)"/>
+  <text x="106" y="232" font-family="Arial" font-size="11" fill="white" opacity="0.80">29</text>
+  <text x="139" y="271" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="white">Cu</text>
+  <text x="139" y="287" text-anchor="middle" font-family="Arial" font-size="9" fill="white" opacity="0.75">Copper</text>
+
+  <!-- B · Boron · #DDA15E -->
+  <rect x="187" y="218" width="80" height="80" rx="8" fill="#DDA15E" filter="url(#shadow)"/>
+  <text x="194" y="232" font-family="Arial" font-size="11" fill="#3a1a00" opacity="0.75">5</text>
+  <text x="227" y="271" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#2a0a00">B</text>
+  <text x="227" y="287" text-anchor="middle" font-family="Arial" font-size="9" fill="#3a1a00" opacity="0.65">Boron</text>
+
+  <!-- Ar · Argon · #E5CCFF -->
+  <rect x="275" y="218" width="80" height="80" rx="8" fill="#E5CCFF" filter="url(#shadow)"/>
+  <text x="282" y="232" font-family="Arial" font-size="11" fill="#2a0a4a" opacity="0.75">18</text>
+  <text x="315" y="271" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#1a002a">Ar</text>
+  <text x="315" y="287" text-anchor="middle" font-family="Arial" font-size="9" fill="#2a0a4a" opacity="0.65">Argon</text>
+
+  <!-- N · Nitrogen · #B4D7FF -->
+  <rect x="363" y="218" width="80" height="80" rx="8" fill="#B4D7FF" filter="url(#shadow)"/>
+  <text x="370" y="232" font-family="Arial" font-size="11" fill="#0a2a4a" opacity="0.75">7</text>
+  <text x="403" y="271" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#001a3a">N</text>
+  <text x="403" y="287" text-anchor="middle" font-family="Arial" font-size="9" fill="#0a2a4a" opacity="0.65">Nitrogen</text>
+
+  <!-- Kr · Krypton · #5CB8D1 (medium-dark → white text) -->
+  <rect x="451" y="218" width="80" height="80" rx="8" fill="#5CB8D1" filter="url(#shadow)"/>
+  <text x="458" y="232" font-family="Arial" font-size="11" fill="white" opacity="0.80">36</text>
+  <text x="491" y="271" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="white">Kr</text>
+  <text x="491" y="287" text-anchor="middle" font-family="Arial" font-size="9" fill="white" opacity="0.75">Krypton</text>
+
+  <!-- ══ ROW 2 ══ -->
+
+  <!-- Si · Silicon · #C8B8A8 -->
+  <rect x="99" y="306" width="80" height="80" rx="8" fill="#C8B8A8" filter="url(#shadow)"/>
+  <text x="106" y="320" font-family="Arial" font-size="11" fill="#2a1a0a" opacity="0.75">14</text>
+  <text x="139" y="359" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#1a0a00">Si</text>
+  <text x="139" y="375" text-anchor="middle" font-family="Arial" font-size="9" fill="#2a1a0a" opacity="0.65">Silicon</text>
+
+  <!-- Mg · Magnesium · #E6E6E6 -->
+  <rect x="187" y="306" width="80" height="80" rx="8" fill="#E6E6E6" filter="url(#shadow)"/>
+  <text x="194" y="320" font-family="Arial" font-size="11" fill="#2a2a2a" opacity="0.75">12</text>
+  <text x="227" y="359" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="24" fill="#1a1a1a">Mg</text>
+  <text x="227" y="375" text-anchor="middle" font-family="Arial" font-size="9" fill="#2a2a2a" opacity="0.65">Magnesium</text>
+
+  <!-- P · Phosphorus · #FFD4AA -->
+  <rect x="275" y="306" width="80" height="80" rx="8" fill="#FFD4AA" filter="url(#shadow)"/>
+  <text x="282" y="320" font-family="Arial" font-size="11" fill="#4a2a00" opacity="0.75">15</text>
+  <text x="315" y="359" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#2a0a00">P</text>
+  <text x="315" y="375" text-anchor="middle" font-family="Arial" font-size="9" fill="#4a2a00" opacity="0.65">Phosphorus</text>
+
+  <!-- Cl · Chlorine · #D4FFD4 -->
+  <rect x="363" y="306" width="80" height="80" rx="8" fill="#D4FFD4" filter="url(#shadow)"/>
+  <text x="370" y="320" font-family="Arial" font-size="11" fill="#0a3a0a" opacity="0.75">17</text>
+  <text x="403" y="359" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#002a00">Cl</text>
+  <text x="403" y="375" text-anchor="middle" font-family="Arial" font-size="9" fill="#0a3a0a" opacity="0.65">Chlorine</text>
+
+  <!-- Ca · Calcium · #F0F0F0 -->
+  <rect x="451" y="306" width="80" height="80" rx="8" fill="#F0F0F0" filter="url(#shadow)"/>
+  <text x="458" y="320" font-family="Arial" font-size="11" fill="#2a2a2a" opacity="0.75">20</text>
+  <text x="491" y="359" text-anchor="middle" font-family="'Arial Black', Arial" font-weight="800" font-size="26" fill="#1a1a1a">Ca</text>
+  <text x="491" y="375" text-anchor="middle" font-family="Arial" font-size="9" fill="#2a2a2a" opacity="0.65">Calcium</text>
+
+  <!-- ── BOTTOM ── -->
+  <line x1="99" y1="415" x2="531" y2="415" stroke="#1e3a5f" stroke-width="1" opacity="0.45"/>
+
+  <text x="315" y="443"
+    text-anchor="middle"
+    font-family="Arial, sans-serif"
+    font-size="14"
+    fill="#94a3b8">All 118 real elements  ·  Match-3 puzzle  ·  Chain combos for bonus moves</text>
+
+  <text x="315" y="470"
+    text-anchor="middle"
+    font-family="Arial, sans-serif"
+    font-size="13"
+    fill="#475569">How far up the periodic table can you go?</text>
+</svg>
