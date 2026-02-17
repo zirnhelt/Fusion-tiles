@@ -178,6 +178,34 @@ export default function ElementSwapGame() {
     return { min: minSpawn, max: maxSpawn };
   };
 
+  // Remove elements that have fallen below the current spawn minimum,
+  // but only if there are fewer than 3 on the board (≥3 can still form a match).
+  const cleanupObsoleteElements = (grid) => {
+    const { min: minSpawn } = getSpawnRange(grid);
+    if (minSpawn <= 1) return false;
+
+    let cleaned = false;
+    for (let elementNum = 1; elementNum < minSpawn; elementNum++) {
+      let count = 0;
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          if (grid[i][j] === elementNum) count++;
+        }
+      }
+      if (count > 0 && count < 3) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+          for (let j = 0; j < GRID_SIZE; j++) {
+            if (grid[i][j] === elementNum) {
+              grid[i][j] = null;
+              cleaned = true;
+            }
+          }
+        }
+      }
+    }
+    return cleaned;
+  };
+
   const resetGame = () => {
     let newGrid = createRandomGrid();
     // Clear any initial matches and ensure valid moves exist
@@ -410,6 +438,30 @@ export default function ElementSwapGame() {
         }
       }
 
+      // Remove obsolete low-tier elements (below spawn min, fewer than 3 on board)
+      if (cleanupObsoleteElements(newGrid)) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          let writePos = GRID_SIZE - 1;
+          for (let i = GRID_SIZE - 1; i >= 0; i--) {
+            if (newGrid[i][j] !== null) {
+              if (i !== writePos) {
+                newGrid[writePos][j] = newGrid[i][j];
+                newGrid[i][j] = null;
+              }
+              writePos--;
+            }
+          }
+        }
+        for (let j = 0; j < GRID_SIZE; j++) {
+          for (let i = 0; i < GRID_SIZE; i++) {
+            if (newGrid[i][j] === null) {
+              const spawnRange = getSpawnRange(newGrid);
+              newGrid[i][j] = Math.floor(Math.random() * (spawnRange.max - spawnRange.min + 1)) + spawnRange.min;
+            }
+          }
+        }
+      }
+
       setGrid([...newGrid]);
       await new Promise(resolve => setTimeout(resolve, 300));
 
@@ -572,6 +624,30 @@ export default function ElementSwapGame() {
         if (newGrid[i][j] === null) {
           const spawnRange = getSpawnRange(newGrid);
           newGrid[i][j] = Math.floor(Math.random() * (spawnRange.max - spawnRange.min + 1)) + spawnRange.min;
+        }
+      }
+    }
+
+    // Remove obsolete low-tier elements (below spawn min, fewer than 3 on board)
+    if (cleanupObsoleteElements(newGrid)) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        let writePos = GRID_SIZE - 1;
+        for (let i = GRID_SIZE - 1; i >= 0; i--) {
+          if (newGrid[i][j] !== null) {
+            if (i !== writePos) {
+              newGrid[writePos][j] = newGrid[i][j];
+              newGrid[i][j] = null;
+            }
+            writePos--;
+          }
+        }
+      }
+      for (let j = 0; j < GRID_SIZE; j++) {
+        for (let i = 0; i < GRID_SIZE; i++) {
+          if (newGrid[i][j] === null) {
+            const spawnRange = getSpawnRange(newGrid);
+            newGrid[i][j] = Math.floor(Math.random() * (spawnRange.max - spawnRange.min + 1)) + spawnRange.min;
+          }
         }
       }
     }
