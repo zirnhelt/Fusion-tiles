@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy to GitHub Pages and itch.io
 
 on:
   push:
@@ -41,6 +41,12 @@ jobs:
         with:
           path: './dist'
 
+      - name: Cache dist for itch.io deploy
+        uses: actions/cache/save@v4
+        with:
+          path: ./dist
+          key: dist-${{ github.sha }}
+
   deploy:
     environment:
       name: github-pages
@@ -51,3 +57,30 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  deploy-itchio:
+    runs-on: ubuntu-latest
+    needs: build
+    # Only run if the BUTLER_CREDENTIALS secret is present
+    if: ${{ secrets.BUTLER_CREDENTIALS != '' }}
+    steps:
+      - name: Restore dist from cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ./dist
+          key: dist-${{ github.sha }}
+
+      - name: Install Butler
+        run: |
+          curl -L -o butler.zip https://broth.itch.ovh/butler/linux-amd64/LATEST/archive/default
+          unzip butler.zip
+          chmod +x butler
+          ./butler -V
+
+      - name: Push to itch.io
+        # ITCHIO_GAME should be set as a GitHub repository variable (not secret)
+        # Format: your-itchio-username/your-game-slug  (e.g. zirnhelt/fusion-tiles)
+        # Create it at: Settings → Secrets and variables → Actions → Variables tab
+        env:
+          BUTLER_API_KEY: ${{ secrets.BUTLER_CREDENTIALS }}
+        run: ./butler push dist ${{ vars.ITCHIO_GAME }}:html5
