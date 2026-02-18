@@ -871,6 +871,64 @@ export default function ElementSwapGame() {
           </div>
           </div>
 
+          {grid.length > 0 && (() => {
+            const elementCounts = {};
+            grid.flat().filter(Boolean).forEach(el => {
+              elementCounts[el] = (elementCounts[el] || 0) + 1;
+            });
+            const { min: spawnMin, max: spawnMax } = getSpawnRange(grid);
+
+            return (
+              <div className="mb-3 bg-gray-50 rounded-lg p-3">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm font-medium text-gray-700">
+                    Elements Discovered
+                    <span className="ml-2 text-xs font-normal text-gray-400">({seenElements.length} total)</span>
+                  </div>
+                  <div className="text-xs text-blue-600">
+                    Spawning: <span className="font-semibold">{ELEMENTS[spawnMin - 1]?.symbol}</span>–<span className="font-semibold">{ELEMENTS[spawnMax - 1]?.symbol}</span>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-400 mb-2">
+                  New elements appear as you fuse. Grayed-out elements are not currently on the board or have been retired.
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {seenElements.map(elNum => {
+                    const el = ELEMENTS[elNum - 1];
+                    const count = elementCounts[elNum] || 0;
+                    const isEliminated = eliminatedElements.has(elNum);
+                    const shouldGrey = isEliminated || count === 0;
+
+                    return (
+                      <div
+                        key={elNum}
+                        className={`relative px-2 py-1 rounded text-xs font-medium border transition-all ${
+                          shouldGrey ? 'opacity-40' : ''
+                        }`}
+                        style={{
+                          backgroundColor: shouldGrey ? '#d1d5db' : el.color,
+                          borderColor: shouldGrey ? '#9ca3af' : '#999',
+                        }}
+                        title={`${el.name} (${el.symbol}) · weight ${el.weight}${isEliminated ? ' · Retired' : count > 0 ? ` · ×${count} on board` : ' · Not on board'}`}
+                      >
+                        <div className={`font-bold leading-none ${shouldGrey ? 'text-gray-400' : 'text-gray-700'}`}>
+                          {el.symbol}
+                        </div>
+                        {isEliminated ? (
+                          <div className="text-[8px] text-gray-400 leading-none mt-0.5">retired</div>
+                        ) : count > 0 ? (
+                          <div className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold">
+                            {count}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="text-sm text-gray-600 text-center">
             Swap adjacent tiles to match 3+ identical elements.<br />
             <span className="font-semibold text-purple-700">Matched elements fuse based on total atomic mass!</span><br />
@@ -879,7 +937,7 @@ export default function ElementSwapGame() {
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
             <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span><br />
             <span className="text-xs text-gray-500 mt-1 block">
-              As you fuse heavier elements, the spawn pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board — you'll see them grayed out in the element log below.
+              As you fuse heavier elements, the spawn pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board.
             </span>
           </div>
         </div>
@@ -909,65 +967,6 @@ export default function ElementSwapGame() {
             </div>
           </div>
         )}
-
-        <div className="bg-white rounded-lg shadow p-4 mt-4">
-          {grid.length > 0 && (() => {
-            const elementCounts = {};
-            grid.flat().filter(Boolean).forEach(el => {
-              elementCounts[el] = (elementCounts[el] || 0) + 1;
-            });
-            const { min: spawnMin, max: spawnMax } = getSpawnRange(grid);
-
-            return (
-              <>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm font-medium text-gray-700">
-                    Elements Discovered
-                    <span className="ml-2 text-xs font-normal text-gray-400">({seenElements.length} total)</span>
-                  </div>
-                  <div className="text-xs text-blue-600">
-                    Spawning: <span className="font-semibold">{ELEMENTS[spawnMin - 1]?.symbol}</span>–<span className="font-semibold">{ELEMENTS[spawnMax - 1]?.symbol}</span>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-400 mb-2">
-                  New elements appear as you fuse. Grayed-out elements have been retired from the board.
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {seenElements.map(elNum => {
-                    const el = ELEMENTS[elNum - 1];
-                    const count = elementCounts[elNum] || 0;
-                    const isEliminated = eliminatedElements.has(elNum);
-
-                    return (
-                      <div
-                        key={elNum}
-                        className={`relative px-2 py-1 rounded text-xs font-medium border transition-all ${
-                          isEliminated ? 'opacity-40' : ''
-                        }`}
-                        style={{
-                          backgroundColor: isEliminated ? '#d1d5db' : el.color,
-                          borderColor: isEliminated ? '#9ca3af' : '#999',
-                        }}
-                        title={`${el.name} (${el.symbol}) · weight ${el.weight}${isEliminated ? ' · Retired' : count > 0 ? ` · ×${count} on board` : ' · Not on board'}`}
-                      >
-                        <div className={`font-bold leading-none ${isEliminated ? 'text-gray-400' : 'text-gray-700'}`}>
-                          {el.symbol}
-                        </div>
-                        {isEliminated ? (
-                          <div className="text-[8px] text-gray-400 leading-none mt-0.5">retired</div>
-                        ) : count > 0 ? (
-                          <div className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold">
-                            {count}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            );
-          })()}
-        </div>
       </div>
     </div>
   );
