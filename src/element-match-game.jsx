@@ -404,7 +404,7 @@ export default function ElementSwapGame() {
 
       // Bonus move for combos (more generous)
       if (comboCount >= 2) {
-        bonusMoves += 2; // Each cascade gives +2 moves
+        bonusMoves += 3; // Each cascade gives +3 moves
       }
 
       setHighlightedCells([]);
