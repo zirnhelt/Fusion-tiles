@@ -563,7 +563,7 @@ export default function ElementSwapGame() {
       // Update discovered elements and retired elements
       setSeenElements(prev => {
         const prevSet = new Set(prev);
-        const newEls = finalGrid.flat().filter(el => el && !prevSet.has(el)).sort((a, b) => a - b);
+        const newEls = [...new Set(finalGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
         return newEls.length > 0 ? [...prev, ...newEls] : prev;
       });
       if (removedElements.length > 0) {
@@ -705,7 +705,7 @@ export default function ElementSwapGame() {
     // Update discovered elements after nuke
     setSeenElements(prev => {
       const prevSet = new Set(prev);
-      const newEls = newGrid.flat().filter(el => el && !prevSet.has(el)).sort((a, b) => a - b);
+      const newEls = [...new Set(newGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
       return newEls.length > 0 ? [...prev, ...newEls] : prev;
     });
 
