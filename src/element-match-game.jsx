@@ -564,7 +564,7 @@ export default function ElementSwapGame() {
       setSeenElements(prev => {
         const prevSet = new Set(prev);
         const newEls = [...new Set(finalGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
-        return newEls.length > 0 ? [...prev, ...newEls] : prev;
+        return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
@@ -706,7 +706,7 @@ export default function ElementSwapGame() {
     setSeenElements(prev => {
       const prevSet = new Set(prev);
       const newEls = [...new Set(newGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
-      return newEls.length > 0 ? [...prev, ...newEls] : prev;
+      return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
     });
 
     // Deduct score and moves
