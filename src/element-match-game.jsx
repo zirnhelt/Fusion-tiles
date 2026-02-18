@@ -151,8 +151,19 @@ export default function ElementSwapGame() {
     for (let i = 0; i < GRID_SIZE; i++) {
       const row = [];
       for (let j = 0; j < GRID_SIZE; j++) {
-        // Start with elements 1-4 only
-        row.push(Math.floor(Math.random() * 4) + 1);
+        // Avoid creating 3-in-a-row while building the grid to reduce
+        // the number of rejection retries needed in resetGame()
+        const forbidden = new Set();
+        if (j >= 2 && row[j - 1] === row[j - 2]) forbidden.add(row[j - 1]);
+        if (i >= 2 && newGrid[i - 1][j] === newGrid[i - 2][j]) forbidden.add(newGrid[i - 1][j]);
+
+        let value;
+        let tries = 0;
+        do {
+          value = Math.floor(Math.random() * 4) + 1;
+          tries++;
+        } while (forbidden.has(value) && tries < 20);
+        row.push(value);
       }
       newGrid.push(row);
     }
@@ -208,9 +219,14 @@ export default function ElementSwapGame() {
 
   const resetGame = () => {
     let newGrid = createRandomGrid();
-    // Clear any initial matches and ensure valid moves exist
-    while (hasMatches(newGrid).length > 0 || !hasValidMoves(newGrid)) {
+    // Clear any initial matches and ensure valid moves exist.
+    // Cap attempts so the synchronous loop can never block the UI thread
+    // indefinitely (smart generation above makes this rarely needed).
+    let attempts = 0;
+    const MAX_RESET_ATTEMPTS = 200;
+    while ((hasMatches(newGrid).length > 0 || !hasValidMoves(newGrid)) && attempts < MAX_RESET_ATTEMPTS) {
       newGrid = createRandomGrid();
+      attempts++;
     }
     setGrid(newGrid);
     setScore(0);
@@ -351,6 +367,8 @@ export default function ElementSwapGame() {
   };
 
 
+  const MAX_CASCADES = 20;
+
   const processMatches = async (grid, targetPos = null) => {
     let newGrid = grid.map(r => [...r]);
     let totalScore = 0;
@@ -358,7 +376,8 @@ export default function ElementSwapGame() {
     let matchesFound = findMatches(newGrid);
     let comboCount = 0;
 
-    while (matchesFound.length > 0) {
+    try {
+    while (matchesFound.length > 0 && comboCount < MAX_CASCADES) {
       setAnimating(true);
       comboCount++;
 
@@ -467,8 +486,10 @@ export default function ElementSwapGame() {
 
       matchesFound = findMatches(newGrid);
     }
+    } finally {
+      setAnimating(false);
+    }
 
-    setAnimating(false);
     return { grid: newGrid, score: totalScore, bonusMoves };
   };
 
@@ -577,6 +598,7 @@ export default function ElementSwapGame() {
     if (moves < 5 || animating) return;
 
     setAnimating(true);
+    try {
     const affectedCells = getNukeArea(centerRow, centerCol);
 
     // Calculate score penalty (sum of atomic weights)
@@ -661,12 +683,14 @@ export default function ElementSwapGame() {
 
     setNukeMode(false);
     setNukeTarget(null);
-    setAnimating(false);
 
     const finalMoves = moves - 5;
     if (finalMoves <= 0) {
       setGameOver(true);
       setGameOverReason('No moves remaining');
+    }
+    } finally {
+      setAnimating(false);
     }
   };
 
