@@ -172,7 +172,7 @@ export default function ElementSwapGame() {
     return newGrid;
   };
 
-  const getGenerationRange = (grid) => {
+  const getSublimationRange = (grid) => {
     // Find highest element on board
     let maxElement = 1;
     for (let i = 0; i < GRID_SIZE; i++) {
@@ -183,24 +183,24 @@ export default function ElementSwapGame() {
       }
     }
 
-    // Generation range shifts up slowly as you progress
-    // Every 8 elements unlocked, increase minimum generation by 1
-    const minGeneration = Math.max(1, Math.floor(maxElement / 8));
-    const maxGeneration = Math.min(minGeneration + 4, ELEMENTS.length); // Range of 5 elements
+    // Sublimation range shifts up slowly as you progress
+    // Every 8 elements unlocked, increase minimum sublimation by 1
+    const minSublimation = Math.max(1, Math.floor(maxElement / 8));
+    const maxSublimation = Math.min(minSublimation + 4, ELEMENTS.length); // Range of 5 elements
 
-    return { min: minGeneration, max: maxGeneration };
+    return { min: minSublimation, max: maxSublimation };
   };
 
-  // Remove elements that have fallen below the current generation minimum,
+  // Remove elements that have fallen below the current sublimation minimum,
   // but only if there are fewer than 3 on the board (≥3 can still form a match).
   // Returns { cleaned, removed } where removed is the list of retired element numbers.
   const cleanupObsoleteElements = (grid) => {
-    const { min: minGeneration } = getGenerationRange(grid);
-    if (minGeneration <= 1) return { cleaned: false, removed: [] };
+    const { min: minSublimation } = getSublimationRange(grid);
+    if (minSublimation <= 1) return { cleaned: false, removed: [] };
 
     let cleaned = false;
     const removed = [];
-    for (let elementNum = 1; elementNum < minGeneration; elementNum++) {
+    for (let elementNum = 1; elementNum < minSublimation; elementNum++) {
       let count = 0;
       for (let i = 0; i < GRID_SIZE; i++) {
         for (let j = 0; j < GRID_SIZE; j++) {
@@ -226,7 +226,7 @@ export default function ElementSwapGame() {
     let newGrid = createRandomGrid();
     // Clear any initial matches and ensure valid moves exist.
     // Cap attempts so the synchronous loop can never block the UI thread
-    // indefinitely (smart generation above makes this rarely needed).
+    // indefinitely (smart sublimation above makes this rarely needed).
     let attempts = 0;
     const MAX_RESET_ATTEMPTS = 200;
     while ((hasMatches(newGrid).length > 0 || !hasValidMoves(newGrid)) && attempts < MAX_RESET_ATTEMPTS) {
@@ -461,13 +461,13 @@ export default function ElementSwapGame() {
       for (let j = 0; j < GRID_SIZE; j++) {
         for (let i = 0; i < GRID_SIZE; i++) {
           if (newGrid[i][j] === null) {
-            const generationRange = getGenerationRange(newGrid);
-            newGrid[i][j] = Math.floor(Math.random() * (generationRange.max - generationRange.min + 1)) + generationRange.min;
+            const sublimationRange = getSublimationRange(newGrid);
+            newGrid[i][j] = Math.floor(Math.random() * (sublimationRange.max - sublimationRange.min + 1)) + sublimationRange.min;
           }
         }
       }
 
-      // Remove obsolete low-tier elements (below generation minimum, fewer than 3 on board)
+      // Remove obsolete low-tier elements (below sublimation minimum, fewer than 3 on board)
       const { cleaned: didClean, removed: removedNow } = cleanupObsoleteElements(newGrid);
       allRemovedElements.push(...removedNow);
       if (didClean) {
@@ -486,8 +486,8 @@ export default function ElementSwapGame() {
         for (let j = 0; j < GRID_SIZE; j++) {
           for (let i = 0; i < GRID_SIZE; i++) {
             if (newGrid[i][j] === null) {
-              const generationRange = getGenerationRange(newGrid);
-              newGrid[i][j] = Math.floor(Math.random() * (generationRange.max - generationRange.min + 1)) + generationRange.min;
+              const sublimationRange = getSublimationRange(newGrid);
+              newGrid[i][j] = Math.floor(Math.random() * (sublimationRange.max - sublimationRange.min + 1)) + sublimationRange.min;
             }
           }
         }
@@ -666,13 +666,13 @@ export default function ElementSwapGame() {
     for (let j = 0; j < GRID_SIZE; j++) {
       for (let i = 0; i < GRID_SIZE; i++) {
         if (newGrid[i][j] === null) {
-          const generationRange = getGenerationRange(newGrid);
-          newGrid[i][j] = Math.floor(Math.random() * (generationRange.max - generationRange.min + 1)) + generationRange.min;
+          const sublimationRange = getSublimationRange(newGrid);
+          newGrid[i][j] = Math.floor(Math.random() * (sublimationRange.max - sublimationRange.min + 1)) + sublimationRange.min;
         }
       }
     }
 
-    // Remove obsolete low-tier elements (below generation minimum, fewer than 3 on board)
+    // Remove obsolete low-tier elements (below sublimation minimum, fewer than 3 on board)
     const { cleaned: nukeClean, removed: nukeRemoved } = cleanupObsoleteElements(newGrid);
     if (nukeRemoved.length > 0) {
       setEliminatedElements(prev => new Set([...prev, ...nukeRemoved]));
@@ -693,8 +693,8 @@ export default function ElementSwapGame() {
       for (let j = 0; j < GRID_SIZE; j++) {
         for (let i = 0; i < GRID_SIZE; i++) {
           if (newGrid[i][j] === null) {
-            const generationRange = getGenerationRange(newGrid);
-            newGrid[i][j] = Math.floor(Math.random() * (generationRange.max - generationRange.min + 1)) + generationRange.min;
+            const sublimationRange = getSublimationRange(newGrid);
+            newGrid[i][j] = Math.floor(Math.random() * (sublimationRange.max - sublimationRange.min + 1)) + sublimationRange.min;
           }
         }
       }
@@ -876,7 +876,7 @@ export default function ElementSwapGame() {
             grid.flat().filter(Boolean).forEach(el => {
               elementCounts[el] = (elementCounts[el] || 0) + 1;
             });
-            const { min: generationMin, max: generationMax } = getGenerationRange(grid);
+            const { min: sublimationMin, max: sublimationMax } = getSublimationRange(grid);
 
             return (
               <div className="mb-3 bg-gray-50 rounded-lg p-3">
@@ -886,7 +886,7 @@ export default function ElementSwapGame() {
                     <span className="ml-2 text-xs font-normal text-gray-400">({seenElements.length} total)</span>
                   </div>
                   <div className="text-xs text-blue-600">
-                    Generating: <span className="font-semibold">{ELEMENTS[generationMin - 1]?.symbol}</span>–<span className="font-semibold">{ELEMENTS[generationMax - 1]?.symbol}</span>
+                    Sublimating: <span className="font-semibold">{ELEMENTS[sublimationMin - 1]?.symbol}</span>–<span className="font-semibold">{ELEMENTS[sublimationMax - 1]?.symbol}</span>
                   </div>
                 </div>
                 <p className="text-xs text-gray-400 mb-2">
@@ -937,7 +937,7 @@ export default function ElementSwapGame() {
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
             <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span><br />
             <span className="text-xs text-gray-500 mt-1 block">
-              As you fuse heavier elements, the generation pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board.
+              As you fuse heavier elements, the sublimation pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board.
             </span>
           </div>
         </div>
