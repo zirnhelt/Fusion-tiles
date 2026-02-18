@@ -88,28 +88,16 @@ jobs:
 
       - name: Install Butler
         run: |
-          RELEASE=$(curl -s https://api.github.com/repos/itchio/butler/releases/latest)
-          TAG=$(echo "$RELEASE" | jq -r '.tag_name')
-          ASSETS=$(echo "$RELEASE" | jq -r '[.assets[].name] | join(", ")')
-          echo "Butler release $TAG, assets: $ASSETS"
-          BUTLER_URL=$(echo "$RELEASE" | jq -r '
-            [.assets[] | select(
-              (.name | ascii_downcase | contains("linux")) or
-              (.name | ascii_downcase | contains("amd64"))
-            )] | first | .browser_download_url')
-          if [ -n "$BUTLER_URL" ] && [ "$BUTLER_URL" != "null" ]; then
-            echo "Downloading from release: $BUTLER_URL"
-            curl -L -o butler_asset "$BUTLER_URL"
-            if file butler_asset | grep -qi zip; then
-              unzip butler_asset
-            else
-              mv butler_asset butler
-            fi
+          git clone --depth 1 https://github.com/itchio/butler.git butler_src
+          cd butler_src
+          if [ -d vendor ]; then
+            echo "Building with vendor directory..."
+            go build -mod=vendor -o ../butler .
           else
-            echo "No prebuilt binary found; building from source..."
-            go install github.com/itchio/butler@latest
-            cp "$(go env GOPATH)/bin/butler" .
+            echo "Building without vendor..."
+            go build -o ../butler .
           fi
+          cd ..
           chmod +x butler
           echo "$PWD" >> $GITHUB_PATH
           ./butler -V
