@@ -3,71 +3,69 @@
 ---
 
 ## Short Description (≤160 chars)
-> Match identical elements to fuse them into heavier ones. All 118 real elements, from Hydrogen to Oganesson. How far up the table can you go?
+
+> Hydrogen is where everyone starts. Oganesson is where no one has been. A match-3 puzzle built on all 118 real elements — how far up the table can you get?
 
 ---
 
 ## Long Description
 
+Paste this directly into the itch.io description editor.
+Bold markers (`**text**`) render as bold in itch.io's editor.
+
 ```
-⚛ FUSION TILES ⚛
+Hydrogen is where everyone starts.
+Oganesson is where no one has been.
 
-Match tiles. Fuse matter. Advance the table.
+Fusion Tiles is a match-3 puzzle built on the real periodic table — all 118
+elements, from H to Og. Swap adjacent tiles to line up three or more of the
+same element. They fuse. Heavier tiles take their place. The board keeps
+evolving, and so does the challenge.
 
----
+You start with 40 moves. Every match spends one, but longer matches and chain
+reactions earn them back. Stay alive long enough and you'll watch the board
+shift from light gases like Helium and Neon into copper, iron, krypton —
+and beyond.
 
-Fusion Tiles is a match-3 puzzle game built around the real periodic table of
-elements — all 118 of them, from Hydrogen (H) to Oganesson (Og).
+The further you go, the harder the board gets to read.
+That's the point.
 
-Swap adjacent tiles to line up three or more identical elements. Matched tiles
-fuse into heavier elements, pushing you further up the periodic table. Every
-move counts — run out and the game ends.
+────────────────────────────────────────
 
----
+HOW IT WORKS
 
-HOW TO PLAY
+Click a tile → click an adjacent tile → swap → match 3+ → fuse.
 
-→ Click a tile, then click an adjacent tile to swap them
-→ Match 3 or more of the same element to fuse them
-→ Fused tiles merge into the next heavier element on the table
-→ Score points and earn bonus moves with longer matches
-→ Game over when you run out of moves
+Longer matches earn bonus moves:
+  4-match  → +2 moves
+  5-match  → +4 moves
+  6+ match → +6 moves
+  Cascade  → +2 moves per chain reaction
 
----
+Set up cascades and watch the board clear itself. Those are the moments.
 
-MATCH BONUSES
+────────────────────────────────────────
 
-  3-match  — tiles clear, net neutral
-  4-match  — +2 extra moves
-  5-match  — +4 extra moves
-  6+ match — +6 extra moves
-  Cascade  — +2 moves per chain reaction
+WHEN YOU'RE STUCK
 
-Chain cascades keep the board alive longer and rack up big scores.
+💡 Hint    — reveals a valid move for 3 seconds
+🔀 Shuffle — scrambles the board
+☢ Nuke    — full board reset (last resort)
 
----
-
-TOOLS
-
-  💡 Hint    — highlights a valid move for 3 seconds (free)
-  🔀 Shuffle — randomises the board when you're stuck
-  ☢ Nuke    — emergency board reset (last resort)
-
----
+────────────────────────────────────────
 
 FEATURES
 
-✓ All 118 real chemical elements with accurate atomic numbers and weights
-✓ Color-coded by element category
-✓ Difficulty scales as you advance — heavier elements spawn over time
-✓ High score saved locally
-✓ Plays entirely in your browser — no download, no account
-✓ Responsive layout — works on desktop and mobile
+✓ All 118 real elements with accurate atomic numbers and weights
+✓ Elements color-coded by periodic table category
+✓ Difficulty scales the longer you survive
+✓ High score tracked locally
+✓ No download, no account — plays in your browser
+✓ Works on desktop and mobile
 
----
+────────────────────────────────────────
 
-Free to play. Pay what you want if you enjoy it — every bit goes toward
-future updates.
+Free to play. Pay what you want if you enjoy it.
 
 Made with React. Open source on GitHub.
 ```
