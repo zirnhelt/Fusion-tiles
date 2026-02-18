@@ -87,7 +87,14 @@ jobs:
           key: dist-${{ github.sha }}
 
       - name: Install Butler
-        uses: josephbmanley/install-butler@v1.0.3
+        run: |
+          BUTLER_URL=$(curl -s https://api.github.com/repos/itchio/butler/releases/latest \
+            | jq -r '.assets[] | select(.name | test("linux-amd64")) | .browser_download_url' \
+            | head -1)
+          echo "Downloading butler from: $BUTLER_URL"
+          curl -L -o butler "$BUTLER_URL"
+          chmod +x butler
+          ./butler -V
 
       - name: Push to itch.io
         # ITCHIO_GAME should be set as a GitHub repository variable (not secret)
