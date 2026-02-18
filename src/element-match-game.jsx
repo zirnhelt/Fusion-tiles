@@ -139,6 +139,8 @@ export default function ElementSwapGame() {
   const [targetCell, setTargetCell] = useState(null);
   const [nukeMode, setNukeMode] = useState(false);
   const [nukeTarget, setNukeTarget] = useState(null);
+  const [seenElements, setSeenElements] = useState([]);
+  const [eliminatedElements, setEliminatedElements] = useState(new Set());
 
   useEffect(() => {
     resetGame();
@@ -191,11 +193,13 @@ export default function ElementSwapGame() {
 
   // Remove elements that have fallen below the current spawn minimum,
   // but only if there are fewer than 3 on the board (≥3 can still form a match).
+  // Returns { cleaned, removed } where removed is the list of retired element numbers.
   const cleanupObsoleteElements = (grid) => {
     const { min: minSpawn } = getSpawnRange(grid);
-    if (minSpawn <= 1) return false;
+    if (minSpawn <= 1) return { cleaned: false, removed: [] };
 
     let cleaned = false;
+    const removed = [];
     for (let elementNum = 1; elementNum < minSpawn; elementNum++) {
       let count = 0;
       for (let i = 0; i < GRID_SIZE; i++) {
@@ -212,9 +216,10 @@ export default function ElementSwapGame() {
             }
           }
         }
+        removed.push(elementNum);
       }
     }
-    return cleaned;
+    return { cleaned, removed };
   };
 
   const resetGame = () => {
@@ -238,6 +243,10 @@ export default function ElementSwapGame() {
     setTargetCell(null);
     setNukeMode(false);
     setNukeTarget(null);
+    // Initialize element tracking from starting grid
+    const initialElements = [...new Set(newGrid.flat().filter(Boolean))].sort((a, b) => a - b);
+    setSeenElements(initialElements);
+    setEliminatedElements(new Set());
   };
 
   const findMatches = (grid) => {
@@ -375,6 +384,7 @@ export default function ElementSwapGame() {
     let bonusMoves = 0;
     let matchesFound = findMatches(newGrid);
     let comboCount = 0;
+    const allRemovedElements = [];
 
     try {
     while (matchesFound.length > 0 && comboCount < MAX_CASCADES) {
@@ -458,7 +468,9 @@ export default function ElementSwapGame() {
       }
 
       // Remove obsolete low-tier elements (below spawn min, fewer than 3 on board)
-      if (cleanupObsoleteElements(newGrid)) {
+      const { cleaned: didClean, removed: removedNow } = cleanupObsoleteElements(newGrid);
+      allRemovedElements.push(...removedNow);
+      if (didClean) {
         for (let j = 0; j < GRID_SIZE; j++) {
           let writePos = GRID_SIZE - 1;
           for (let i = GRID_SIZE - 1; i >= 0; i--) {
@@ -490,7 +502,7 @@ export default function ElementSwapGame() {
       setAnimating(false);
     }
 
-    return { grid: newGrid, score: totalScore, bonusMoves };
+    return { grid: newGrid, score: totalScore, bonusMoves, removedElements: allRemovedElements };
   };
 
   const handleTileClick = async (row, col) => {
@@ -535,8 +547,8 @@ export default function ElementSwapGame() {
 
       // Target cell is the one that was clicked second (current row, col)
       const targetPosition = { row, col };
-      const { grid: finalGrid, score: gainedScore, bonusMoves } = await processMatches(newGrid, targetPosition);
-      
+      const { grid: finalGrid, score: gainedScore, bonusMoves, removedElements } = await processMatches(newGrid, targetPosition);
+
       const newScore = score + gainedScore;
       setScore(newScore);
       if (newScore > highScore) {
@@ -547,6 +559,16 @@ export default function ElementSwapGame() {
       // Add bonus moves
       const newMoves = moves - 1 + bonusMoves;
       setMoves(newMoves);
+
+      // Update discovered elements and retired elements
+      setSeenElements(prev => {
+        const prevSet = new Set(prev);
+        const newEls = finalGrid.flat().filter(el => el && !prevSet.has(el)).sort((a, b) => a - b);
+        return newEls.length > 0 ? [...prev, ...newEls] : prev;
+      });
+      if (removedElements.length > 0) {
+        setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+      }
 
       // Check if game should end
       if (newMoves <= 0) {
@@ -651,7 +673,11 @@ export default function ElementSwapGame() {
     }
 
     // Remove obsolete low-tier elements (below spawn min, fewer than 3 on board)
-    if (cleanupObsoleteElements(newGrid)) {
+    const { cleaned: nukeClean, removed: nukeRemoved } = cleanupObsoleteElements(newGrid);
+    if (nukeRemoved.length > 0) {
+      setEliminatedElements(prev => new Set([...prev, ...nukeRemoved]));
+    }
+    if (nukeClean) {
       for (let j = 0; j < GRID_SIZE; j++) {
         let writePos = GRID_SIZE - 1;
         for (let i = GRID_SIZE - 1; i >= 0; i--) {
@@ -675,6 +701,13 @@ export default function ElementSwapGame() {
     }
 
     setGrid([...newGrid]);
+
+    // Update discovered elements after nuke
+    setSeenElements(prev => {
+      const prevSet = new Set(prev);
+      const newEls = newGrid.flat().filter(el => el && !prevSet.has(el)).sort((a, b) => a - b);
+      return newEls.length > 0 ? [...prev, ...newEls] : prev;
+    });
 
     // Deduct score and moves
     const newScore = Math.max(0, score - scorePenalty);
@@ -844,7 +877,10 @@ export default function ElementSwapGame() {
             <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
             <span className="text-xs text-green-600">Bonus moves: 3 match (+1), 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
-            <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span>
+            <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span><br />
+            <span className="text-xs text-gray-500 mt-1 block">
+              As you fuse heavier elements, the spawn pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board — you'll see them grayed out in the element log below.
+            </span>
           </div>
         </div>
 
@@ -875,39 +911,62 @@ export default function ElementSwapGame() {
         )}
 
         <div className="bg-white rounded-lg shadow p-4 mt-4">
-          <div className="text-sm font-medium text-gray-700 mb-2">Progress:</div>
-          <div className="flex flex-wrap gap-2 items-center">
-            {grid.length > 0 && (() => {
-              const maxElement = Math.max(...grid.flat().filter(Boolean), 1);
-              const displayElements = [];
-              
-              // Show last 5 elements leading up to current max
-              for (let i = Math.max(1, maxElement - 4); i <= maxElement; i++) {
-                displayElements.push(ELEMENTS[i - 1]);
-              }
-              
-              return displayElements.map((el, idx) => (
-                <div
-                  key={idx}
-                  className={`px-3 py-2 rounded text-sm font-medium border ${
-                    el.number === maxElement ? 'ring-2 ring-purple-500 scale-110' : ''
-                  }`}
-                  style={{ backgroundColor: el.color, borderColor: '#999' }}
-                >
-                  <div className="font-bold">{el.symbol}</div>
-                  <div className="text-xs">{el.name} ({el.weight})</div>
+          {grid.length > 0 && (() => {
+            const elementCounts = {};
+            grid.flat().filter(Boolean).forEach(el => {
+              elementCounts[el] = (elementCounts[el] || 0) + 1;
+            });
+            const { min: spawnMin, max: spawnMax } = getSpawnRange(grid);
+
+            return (
+              <>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm font-medium text-gray-700">
+                    Elements Discovered
+                    <span className="ml-2 text-xs font-normal text-gray-400">({seenElements.length} total)</span>
+                  </div>
+                  <div className="text-xs text-blue-600">
+                    Spawning: <span className="font-semibold">{ELEMENTS[spawnMin - 1]?.symbol}</span>–<span className="font-semibold">{ELEMENTS[spawnMax - 1]?.symbol}</span>
+                  </div>
                 </div>
-              ));
-            })()}
-            {grid.length > 0 && (
-              <div className="text-sm text-gray-500 ml-2">
-                Highest: <span className="font-bold text-purple-600">
-                  {ELEMENTS[Math.max(...grid.flat().filter(Boolean), 1) - 1]?.symbol} 
-                  ({ELEMENTS[Math.max(...grid.flat().filter(Boolean), 1) - 1]?.number})
-                </span>
-              </div>
-            )}
-          </div>
+                <p className="text-xs text-gray-400 mb-2">
+                  New elements appear as you fuse. Grayed-out elements have been retired from the board.
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {seenElements.map(elNum => {
+                    const el = ELEMENTS[elNum - 1];
+                    const count = elementCounts[elNum] || 0;
+                    const isEliminated = eliminatedElements.has(elNum);
+
+                    return (
+                      <div
+                        key={elNum}
+                        className={`relative px-2 py-1 rounded text-xs font-medium border transition-all ${
+                          isEliminated ? 'opacity-40' : ''
+                        }`}
+                        style={{
+                          backgroundColor: isEliminated ? '#d1d5db' : el.color,
+                          borderColor: isEliminated ? '#9ca3af' : '#999',
+                        }}
+                        title={`${el.name} (${el.symbol}) · weight ${el.weight}${isEliminated ? ' · Retired' : count > 0 ? ` · ×${count} on board` : ' · Not on board'}`}
+                      >
+                        <div className={`font-bold leading-none ${isEliminated ? 'text-gray-400' : 'text-gray-700'}`}>
+                          {el.symbol}
+                        </div>
+                        {isEliminated ? (
+                          <div className="text-[8px] text-gray-400 leading-none mt-0.5">retired</div>
+                        ) : count > 0 ? (
+                          <div className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] font-bold">
+                            {count}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </div>
     </div>
