@@ -625,6 +625,16 @@ export default function ElementSwapGame() {
     return affectedCells;
   };
 
+  const getCatalystArea = (centerRow, centerCol) => {
+    // Get the 4 orthogonally adjacent tiles (N, S, E, W)
+    return [
+      [centerRow - 1, centerCol],
+      [centerRow + 1, centerCol],
+      [centerRow, centerCol - 1],
+      [centerRow, centerCol + 1],
+    ].filter(([i, j]) => i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE);
+  };
+
   const executeNuke = async (centerRow, centerCol) => {
     if (moves < 5 || animating) return;
 
@@ -755,7 +765,7 @@ export default function ElementSwapGame() {
 
     setAnimating(true);
     try {
-      const area = getNukeArea(centerRow, centerCol);
+      const area = getCatalystArea(centerRow, centerCol);
 
       // Highlight the affected area
       setHighlightedCells(area);
@@ -890,7 +900,7 @@ export default function ElementSwapGame() {
             {catalystMode && (
               <div className="mb-3 p-3 bg-green-600 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2">
                 <FlaskConical className="w-5 h-5" />
-                Click a tile to convert 3×3 area to that element
+                Click a tile to convert its 4 neighbors to that element
                 {catalystTarget && grid[catalystTarget.row]?.[catalystTarget.col] && (() => {
                   const el = ELEMENTS[grid[catalystTarget.row][catalystTarget.col] - 1];
                   return <span className="ml-2">(→ all {el.symbol}, -{CATALYST_COST} moves)</span>;
@@ -910,7 +920,7 @@ export default function ElementSwapGame() {
 
                 // Check if this tile is in catalyst preview area
                 const isInCatalystArea = catalystMode && catalystTarget &&
-                  getNukeArea(catalystTarget.row, catalystTarget.col).some(([r, c]) => r === i && c === j);
+                  getCatalystArea(catalystTarget.row, catalystTarget.col).some(([r, c]) => r === i && c === j);
                 const isCatalystCenter = catalystMode && catalystTarget &&
                   catalystTarget.row === i && catalystTarget.col === j;
 
@@ -1055,7 +1065,7 @@ export default function ElementSwapGame() {
             <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
             <span className="text-xs text-green-600">Bonus moves: 3 match (+1), 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
-            <span className="text-xs text-green-700 font-semibold">Catalyst: Convert 3×3 area to one element for -{CATALYST_COST} moves</span><br />
+            <span className="text-xs text-green-700 font-semibold">Catalyst: Convert 4 adjacent tiles to one element for -{CATALYST_COST} moves</span><br />
             <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span><br />
             <span className="text-xs text-gray-500 mt-1 block">
               As you fuse heavier elements, the deposition pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board.
