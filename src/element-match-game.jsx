@@ -124,6 +124,7 @@ const ELEMENTS = [
 ];
 
 const GRID_SIZE = 6;
+const FISSION_THRESHOLD = 83; // Bismuth (Z=83) and heavier can undergo fission when struck by Hydrogen
 
 export default function ElementSwapGame() {
   const [grid, setGrid] = useState([]);
@@ -143,6 +144,8 @@ export default function ElementSwapGame() {
   const [catalystTarget, setCatalystTarget] = useState(null);
   const [seenElements, setSeenElements] = useState([]);
   const [eliminatedElements, setEliminatedElements] = useState(new Set());
+  const [fissionCells, setFissionCells] = useState([]);
+  const [fissionEvent, setFissionEvent] = useState(null);
 
   useEffect(() => {
     resetGame();
@@ -251,6 +254,8 @@ export default function ElementSwapGame() {
     const initialElements = [...new Set(newGrid.flat().filter(Boolean))].sort((a, b) => a - b);
     setSeenElements(initialElements);
     setEliminatedElements(new Set());
+    setFissionCells([]);
+    setFissionEvent(null);
   };
 
   const findMatches = (grid) => {
@@ -314,6 +319,46 @@ export default function ElementSwapGame() {
     return closest.number;
   };
 
+
+  // Like findElementByWeight but restricts results to elements lighter than the heavy nucleus
+  const findElementByWeightBelow = (targetWeight, maxAtomicNum) => {
+    let closest = ELEMENTS[0];
+    let minDiff = Math.abs(ELEMENTS[0].weight - targetWeight);
+    for (let i = 1; i < ELEMENTS.length; i++) {
+      if (ELEMENTS[i].number >= maxAtomicNum) continue;
+      const diff = Math.abs(ELEMENTS[i].weight - targetWeight);
+      if (diff < minDiff || (diff === minDiff && ELEMENTS[i].number > closest.number)) {
+        minDiff = diff;
+        closest = ELEMENTS[i];
+      }
+    }
+    return closest.number;
+  };
+
+  // Calculate two daughter nuclei from a heavy element undergoing fission
+  const calculateFissionProducts = (heavyElementNum) => {
+    const heavyWeight = ELEMENTS[heavyElementNum - 1].weight;
+    // Random asymmetric split (38%–62%) to mimic real fission mass distributions
+    const ratio = 0.38 + Math.random() * 0.24;
+    const daughter1Weight = Math.round(heavyWeight * ratio);
+    const daughter2Weight = heavyWeight - daughter1Weight;
+    return {
+      daughter1: findElementByWeightBelow(daughter1Weight, heavyElementNum),
+      daughter2: findElementByWeightBelow(daughter2Weight, heavyElementNum),
+    };
+  };
+
+  // Returns fission trigger info if swapping (row1,col1)↔(row2,col2) would cause fission
+  const checkFissionTrigger = (row1, col1, row2, col2, currentGrid) => {
+    const el1 = currentGrid[row1][col1];
+    const el2 = currentGrid[row2][col2];
+    if (!el1 || !el2) return null;
+    if (el1 === 1 && el2 >= FISSION_THRESHOLD)
+      return { neutronRow: row1, neutronCol: col1, heavyRow: row2, heavyCol: col2 };
+    if (el2 === 1 && el1 >= FISSION_THRESHOLD)
+      return { neutronRow: row2, neutronCol: col2, heavyRow: row1, heavyCol: col1 };
+    return null;
+  };
 
   const createEmptyGrid = () => {
     return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
@@ -509,6 +554,68 @@ export default function ElementSwapGame() {
     return { grid: newGrid, score: totalScore, bonusMoves, removedElements: allRemovedElements };
   };
 
+  const executeFission = async (neutronRow, neutronCol, heavyRow, heavyCol) => {
+    setAnimating(true);
+    try {
+      const heavyNum = grid[heavyRow][heavyCol];
+      const heavyElement = ELEMENTS[heavyNum - 1];
+      const { daughter1, daughter2 } = calculateFissionProducts(heavyNum);
+      const d1El = ELEMENTS[daughter1 - 1];
+      const d2El = ELEMENTS[daughter2 - 1];
+
+      // Flash the two cells in orange to signal nuclear fission
+      setFissionCells([[heavyRow, heavyCol], [neutronRow, neutronCol]]);
+      await new Promise(resolve => setTimeout(resolve, 600));
+
+      const newGrid = grid.map(r => [...r]);
+      newGrid[heavyRow][heavyCol] = daughter1;
+      newGrid[neutronRow][neutronCol] = daughter2;
+
+      setFissionCells([]);
+      setGrid([...newGrid]);
+
+      // Display fission equation notification for 4 seconds
+      setFissionEvent({ heavy: heavyElement, d1: d1El, d2: d2El });
+      setTimeout(() => setFissionEvent(null), 4000);
+
+      // Score bonus: atomic number × 50 (much more rewarding than fusion)
+      const fissionScore = heavyElement.number * 50;
+      // Net move change: -1 (move cost) +4 (fission bonus) = +3
+      const movesAfterFission = moves - 1 + 4;
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Process any cascade matches the daughter placements may have created
+      const { grid: finalGrid, score: cascadeScore, bonusMoves, removedElements } = await processMatches(newGrid);
+
+      const finalScore = score + fissionScore + cascadeScore;
+      setScore(finalScore);
+      if (finalScore > highScore) {
+        setHighScore(finalScore);
+        localStorage.setItem('elementSwapHighScore', finalScore.toString());
+      }
+
+      setSeenElements(prev => {
+        const prevSet = new Set(prev);
+        const newEls = [...new Set(finalGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
+        return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
+      });
+      if (removedElements.length > 0) {
+        setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+      }
+
+      const finalMoves = movesAfterFission + bonusMoves;
+      setMoves(finalMoves);
+      if (finalMoves <= 0) {
+        setGameOver(true);
+        setGameOverReason('No moves remaining');
+      }
+    } finally {
+      setAnimating(false);
+      setSelected(null);
+    }
+  };
+
   const handleTileClick = async (row, col) => {
     if (animating || gameOver) return;
 
@@ -539,6 +646,14 @@ export default function ElementSwapGame() {
 
     if (!isAdjacent) {
       setSelected({ row, col });
+      return;
+    }
+
+    // Check for fission: Hydrogen (neutron) + heavy element (Z >= 83) → split
+    const fission = checkFissionTrigger(row, col, selRow, selCol, grid);
+    if (fission) {
+      setSelected(null);
+      await executeFission(fission.neutronRow, fission.neutronCol, fission.heavyRow, fission.heavyCol);
       return;
     }
 
@@ -908,12 +1023,24 @@ export default function ElementSwapGame() {
               </div>
             )}
 
+            {fissionEvent && (
+              <div className="mb-3 p-3 bg-orange-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm">
+                <Atom className="w-5 h-5 shrink-0" />
+                <span>
+                  <span className="font-bold">Fission!</span>{' '}
+                  {fissionEvent.heavy.symbol} ({fissionEvent.heavy.weight}) →{' '}
+                  {fissionEvent.d1.symbol} ({fissionEvent.d1.weight}) + {fissionEvent.d2.symbol} ({fissionEvent.d2.weight})
+                </span>
+              </div>
+            )}
+
             <div className="grid grid-cols-6 gap-1 mb-4 bg-gray-200 p-2 rounded-lg">
             {grid.length > 0 && grid.map((row, i) =>
               row.map((cell, j) => {
                 const isHighlighted = highlightedCells.some(([r, c]) => r === i && c === j);
                 const isHint = hintCells.some(([r, c]) => r === i && c === j);
-                
+                const isInFission = fissionCells.some(([r, c]) => r === i && c === j);
+
                 // Check if this tile is in nuke preview area
                 const isInNukeArea = nukeMode && nukeTarget &&
                   getNukeArea(nukeTarget.row, nukeTarget.col).some(([r, c]) => r === i && c === j);
@@ -923,6 +1050,16 @@ export default function ElementSwapGame() {
                   getCatalystArea(catalystTarget.row, catalystTarget.col).some(([r, c]) => r === i && c === j);
                 const isCatalystCenter = catalystMode && catalystTarget &&
                   catalystTarget.row === i && catalystTarget.col === j;
+
+                // Highlight potential fission targets when Hydrogen is selected,
+                // or highlight Hydrogen tiles when a heavy element is selected
+                const selEl = selected ? grid[selected.row]?.[selected.col] : null;
+                const isAdjacentToSelected = selected &&
+                  Math.abs(i - selected.row) + Math.abs(j - selected.col) === 1;
+                const isFissionHighlight = !nukeMode && !catalystMode && isAdjacentToSelected && (
+                  (selEl === 1 && cell >= FISSION_THRESHOLD) ||
+                  (selEl >= FISSION_THRESHOLD && cell === 1)
+                );
 
                 return (
                   <div
@@ -947,6 +1084,10 @@ export default function ElementSwapGame() {
                           : isInCatalystArea
                           ? 'ring-2 ring-green-400 scale-105'
                           : 'opacity-60'
+                        : isInFission
+                        ? 'ring-4 ring-orange-500 scale-110 animate-pulse'
+                        : isFissionHighlight
+                        ? 'ring-4 ring-orange-400 scale-105 animate-pulse'
                         : selected?.row === i && selected?.col === j
                         ? 'ring-4 ring-purple-500 scale-105'
                         : isHighlighted
@@ -1064,6 +1205,7 @@ export default function ElementSwapGame() {
             <span className="font-semibold text-purple-700">Matched elements fuse based on total atomic mass!</span><br />
             <span className="text-xs">Example: 3 H (mass 1 each) = 3 total → He (mass 4)</span><br />
             <span className="text-xs text-green-600">Bonus moves: 3 match (+1), 4 match (+2), 5 match (+4), 6+ match (+6), combos (+2 each)</span><br />
+            <span className="text-xs text-orange-500 font-semibold">Fission: Swap H (neutron) into Bi or heavier → splits into two lighter elements (+4 moves, big score!)</span><br />
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
             <span className="text-xs text-green-700 font-semibold">Catalyst: Convert 4 adjacent tiles to one element for -{CATALYST_COST} moves</span><br />
             <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span><br />
