@@ -138,6 +138,7 @@ export default function ElementSwapGame() {
   const [highlightedCells, setHighlightedCells] = useState([]);
   const [hintCells, setHintCells] = useState([]);
   const [hintType, setHintType] = useState('direct'); // 'direct' = immediate match, 'path' = multi-step
+  const [hintMessage, setHintMessage] = useState('');
   const [targetCell, setTargetCell] = useState(null);
   const [nukeMode, setNukeMode] = useState(false);
   const [nukeTarget, setNukeTarget] = useState(null);
@@ -247,6 +248,7 @@ export default function ElementSwapGame() {
     setGameOverReason('');
     setSelected(null);
     setHintCells([]);
+    setHintMessage('');
     setTargetCell(null);
     setNukeMode(false);
     setNukeTarget(null);
@@ -464,41 +466,6 @@ export default function ElementSwapGame() {
       return { cells: bestFirstSwap, type: 'path' };
     }
 
-    // Step 3: No 2-swap path found. Highlight the closest pair of the most common
-    // element as a "focus here" hint so the player knows where to work.
-    const elementPositions = {};
-    for (let i = 0; i < GRID_SIZE; i++) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        const val = grid[i][j];
-        if (val) {
-          if (!elementPositions[val]) elementPositions[val] = [];
-          elementPositions[val].push([i, j]);
-        }
-      }
-    }
-
-    let bestPair = null;
-    let bestScore = -1;
-    for (const positions of Object.values(elementPositions)) {
-      if (positions.length < 2) continue;
-      for (let a = 0; a < positions.length; a++) {
-        for (let b = a + 1; b < positions.length; b++) {
-          // Score: more copies = better; closer together = better
-          const dist = Math.abs(positions[a][0] - positions[b][0]) +
-                       Math.abs(positions[a][1] - positions[b][1]);
-          const score = positions.length * 10 - dist;
-          if (score > bestScore) {
-            bestScore = score;
-            bestPair = [positions[a], positions[b]];
-          }
-        }
-      }
-    }
-
-    if (bestPair) {
-      return { cells: bestPair, type: 'path' };
-    }
-
     return null;
   };
 
@@ -509,7 +476,11 @@ export default function ElementSwapGame() {
     if (hint) {
       setHintCells(hint.cells);
       setHintType(hint.type);
+      setHintMessage('');
       setTimeout(() => setHintCells([]), 3000); // Show hint for 3 seconds
+    } else {
+      setHintMessage('No moves found — try Shuffle or Nuke!');
+      setTimeout(() => setHintMessage(''), 3000);
     }
   };
 
@@ -720,6 +691,7 @@ export default function ElementSwapGame() {
 
     // Clear any active hints
     setHintCells([]);
+    setHintMessage('');
 
     if (!selected) {
       setSelected({ row, col });
@@ -1120,6 +1092,13 @@ export default function ElementSwapGame() {
                   {fissionEvent.heavy.symbol} ({fissionEvent.heavy.weight}) →{' '}
                   {fissionEvent.d1.symbol} ({fissionEvent.d1.weight}) + {fissionEvent.d2.symbol} ({fissionEvent.d2.weight})
                 </span>
+              </div>
+            )}
+
+            {hintMessage && (
+              <div className="mb-3 p-3 bg-yellow-100 text-yellow-800 text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm">
+                <Lightbulb className="w-5 h-5 shrink-0" />
+                <span>{hintMessage}</span>
               </div>
             )}
 
