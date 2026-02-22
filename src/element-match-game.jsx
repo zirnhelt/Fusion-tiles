@@ -206,6 +206,7 @@ export default function ElementSwapGame() {
     let cleaned = false;
     const removed = [];
     for (let elementNum = 1; elementNum < minDeposition; elementNum++) {
+      if (elementNum === 1) continue; // H is the neutron — never retire it
       let count = 0;
       for (let i = 0; i < GRID_SIZE; i++) {
         for (let j = 0; j < GRID_SIZE; j++) {
@@ -346,6 +347,17 @@ export default function ElementSwapGame() {
       daughter1: findElementByWeightBelow(daughter1Weight, heavyElementNum),
       daughter2: findElementByWeightBelow(daughter2Weight, heavyElementNum),
     };
+  };
+
+  // Choose what element to deposit into an empty cell.
+  // When fission-eligible elements are on the board and H is scarce, occasionally
+  // deposit H so the player always has a neutron available.
+  const pickDepositElement = (depositionRange, currentGrid) => {
+    const flat = currentGrid.flat();
+    const hasFissionTargets = flat.some(el => el && el >= FISSION_THRESHOLD);
+    const hCount = flat.filter(el => el === 1).length;
+    if (hasFissionTargets && hCount < 2 && Math.random() < 0.15) return 1;
+    return Math.floor(Math.random() * (depositionRange.max - depositionRange.min + 1)) + depositionRange.min;
   };
 
   // Returns fission trigger info if swapping (row1,col1)↔(row2,col2) would cause fission
@@ -511,7 +523,7 @@ export default function ElementSwapGame() {
         for (let i = 0; i < GRID_SIZE; i++) {
           if (newGrid[i][j] === null) {
             const depositionRange = getDepositionRange(newGrid);
-            newGrid[i][j] = Math.floor(Math.random() * (depositionRange.max - depositionRange.min + 1)) + depositionRange.min;
+            newGrid[i][j] = pickDepositElement(depositionRange, newGrid);
           }
         }
       }
@@ -828,7 +840,7 @@ export default function ElementSwapGame() {
         for (let i = 0; i < GRID_SIZE; i++) {
           if (newGrid[i][j] === null) {
             const depositionRange = getDepositionRange(newGrid);
-            newGrid[i][j] = Math.floor(Math.random() * (depositionRange.max - depositionRange.min + 1)) + depositionRange.min;
+            newGrid[i][j] = pickDepositElement(depositionRange, newGrid);
           }
         }
       }
