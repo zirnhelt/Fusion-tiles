@@ -137,6 +137,7 @@ export default function ElementSwapGame() {
   const [animating, setAnimating] = useState(false);
   const [highlightedCells, setHighlightedCells] = useState([]);
   const [hintCells, setHintCells] = useState([]);
+  const [hintType, setHintType] = useState('direct'); // 'direct' = immediate match, 'path' = multi-step
   const [targetCell, setTargetCell] = useState(null);
   const [nukeMode, setNukeMode] = useState(false);
   const [nukeTarget, setNukeTarget] = useState(null);
@@ -402,36 +403,112 @@ export default function ElementSwapGame() {
   };
 
   const findHintMove = () => {
-    // Find first valid swap that creates a match
+    // Step 1: Find a single swap that creates an immediate match
     for (let i = 0; i < GRID_SIZE; i++) {
       for (let j = 0; j < GRID_SIZE; j++) {
-        // Try swapping right
         if (j < GRID_SIZE - 1) {
           const testGrid = grid.map(r => [...r]);
           [testGrid[i][j], testGrid[i][j + 1]] = [testGrid[i][j + 1], testGrid[i][j]];
           if (findMatches(testGrid).length > 0) {
-            return [[i, j], [i, j + 1]];
+            return { cells: [[i, j], [i, j + 1]], type: 'direct' };
           }
         }
-        // Try swapping down
         if (i < GRID_SIZE - 1) {
           const testGrid = grid.map(r => [...r]);
           [testGrid[i][j], testGrid[i + 1][j]] = [testGrid[i + 1][j], testGrid[i][j]];
           if (findMatches(testGrid).length > 0) {
-            return [[i, j], [i + 1, j]];
+            return { cells: [[i, j], [i + 1, j]], type: 'direct' };
           }
         }
       }
     }
+
+    // Step 2: No immediate match — find the most efficient 2-swap path to a triplet.
+    // Collect all adjacent swap pairs on the board.
+    const swaps = [];
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        if (j < GRID_SIZE - 1) swaps.push([[i, j], [i, j + 1]]);
+        if (i < GRID_SIZE - 1) swaps.push([[i, j], [i + 1, j]]);
+      }
+    }
+
+    // For each candidate first swap, check whether any follow-up swap creates a match.
+    // Prefer the first swap that leads to the largest potential match (most tiles cleared).
+    let bestFirstSwap = null;
+    let bestMatchSize = 0;
+
+    for (const [[r1, c1], [r2, c2]] of swaps) {
+      const grid1 = grid.map(r => [...r]);
+      [grid1[r1][c1], grid1[r2][c2]] = [grid1[r2][c2], grid1[r1][c1]];
+
+      for (const [[r3, c3], [r4, c4]] of swaps) {
+        // Skip undoing the first swap
+        if (r1 === r3 && c1 === c3 && r2 === r4 && c2 === c4) continue;
+
+        const grid2 = grid1.map(r => [...r]);
+        [grid2[r3][c3], grid2[r4][c4]] = [grid2[r4][c4], grid2[r3][c3]];
+
+        const matches = findMatches(grid2);
+        if (matches.length > 0) {
+          const matchSize = matches.reduce((sum, m) => sum + m.length, 0);
+          if (matchSize > bestMatchSize) {
+            bestMatchSize = matchSize;
+            bestFirstSwap = [[r1, c1], [r2, c2]];
+          }
+        }
+      }
+    }
+
+    if (bestFirstSwap) {
+      return { cells: bestFirstSwap, type: 'path' };
+    }
+
+    // Step 3: No 2-swap path found. Highlight the closest pair of the most common
+    // element as a "focus here" hint so the player knows where to work.
+    const elementPositions = {};
+    for (let i = 0; i < GRID_SIZE; i++) {
+      for (let j = 0; j < GRID_SIZE; j++) {
+        const val = grid[i][j];
+        if (val) {
+          if (!elementPositions[val]) elementPositions[val] = [];
+          elementPositions[val].push([i, j]);
+        }
+      }
+    }
+
+    let bestPair = null;
+    let bestScore = -1;
+    for (const positions of Object.values(elementPositions)) {
+      if (positions.length < 2) continue;
+      for (let a = 0; a < positions.length; a++) {
+        for (let b = a + 1; b < positions.length; b++) {
+          // Score: more copies = better; closer together = better
+          const dist = Math.abs(positions[a][0] - positions[b][0]) +
+                       Math.abs(positions[a][1] - positions[b][1]);
+          const score = positions.length * 10 - dist;
+          if (score > bestScore) {
+            bestScore = score;
+            bestPair = [positions[a], positions[b]];
+          }
+        }
+      }
+    }
+
+    if (bestPair) {
+      return { cells: bestPair, type: 'path' };
+    }
+
     return null;
   };
 
   const showHint = () => {
     if (animating || gameOver) return;
-    
+
     const hint = findHintMove();
     if (hint) {
-      setHintCells(hint);
+      setHintCells(hint.cells);
+      setHintType(hint.type);
       setTimeout(() => setHintCells([]), 3000); // Show hint for 3 seconds
     }
   };
@@ -1105,7 +1182,9 @@ export default function ElementSwapGame() {
                         : isHighlighted
                         ? 'ring-4 ring-green-400 scale-110'
                         : isHint
-                        ? 'ring-4 ring-yellow-400 scale-110 animate-pulse'
+                        ? hintType === 'direct'
+                          ? 'ring-4 ring-yellow-400 scale-110 animate-pulse'
+                          : 'ring-4 ring-amber-400 scale-110 animate-pulse'
                         : 'hover:scale-105'
                     }`}
                     style={getTileStyle(cell)}
