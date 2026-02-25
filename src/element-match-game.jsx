@@ -153,6 +153,11 @@ export default function ElementSwapGame() {
   const [decayingCells, setDecayingCells] = useState([]); // cells flashing during alpha-decay animation
   const [spontFissionEvent, setSpontFissionEvent] = useState(null); // notification for passive fission
   const [decayEvent, setDecayEvent] = useState(null);    // notification for alpha decay
+  const [consoleEvents, setConsoleEvents] = useState([]);  // terminal console log entries
+
+  const addConsoleEvent = (text) => {
+    setConsoleEvents(prev => [...prev, text].slice(-20));
+  };
 
   useEffect(() => {
     resetGame();
@@ -268,6 +273,7 @@ export default function ElementSwapGame() {
     setDecayingCells([]);
     setSpontFissionEvent(null);
     setDecayEvent(null);
+    setConsoleEvents([]);
   };
 
   const findMatches = (grid) => {
@@ -433,6 +439,7 @@ export default function ElementSwapGame() {
           setGrid(workGrid.map(r => [...r]));
           setSpontFissionEvent({ heavy: heavyElement, d1: d1El, d2: d2El });
           setTimeout(() => setSpontFissionEvent(null), 4000);
+          addConsoleEvent(`⚛ SPONT: ${heavyElement.symbol} → ${d1El.symbol} + ${d2El.symbol}`);
           spontDone = true;
           await new Promise(resolve => setTimeout(resolve, 300));
         }
@@ -470,6 +477,7 @@ export default function ElementSwapGame() {
         if (decayedPairs.length > 0) {
           setDecayEvent({ ...decayedPairs[0], count: decayedPairs.length });
           setTimeout(() => setDecayEvent(null), 3500);
+          addConsoleEvent(`☢ α DECAY: ${decayedPairs[0].from.symbol} → ${decayedPairs[0].to.symbol}${decayedPairs.length > 1 ? ` ×${decayedPairs.length}` : ''}`);
         }
         await new Promise(resolve => setTimeout(resolve, 300));
       }
@@ -677,7 +685,10 @@ export default function ElementSwapGame() {
         
         // Find element with closest atomic weight
         const newElementNumber = findElementByWeight(totalWeight);
-        
+
+        // Log fusion event to terminal console
+        addConsoleEvent(`${match.length} × ${element.symbol} = ${ELEMENTS[newElementNumber - 1].symbol}`);
+
         // Bonus moves for matches
         bonusMoves += 1; // Every match returns 1 move (net zero for basic 3-match)
         if (match.length >= 4) bonusMoves += 1; // 4 match = +2 total
@@ -801,6 +812,7 @@ export default function ElementSwapGame() {
       // Display fission equation notification for 4 seconds
       setFissionEvent({ heavy: heavyElement, d1: d1El, d2: d2El });
       setTimeout(() => setFissionEvent(null), 4000);
+      addConsoleEvent(`FISSION: ${heavyElement.symbol} → ${d1El.symbol} + ${d2El.symbol}`);
 
       // Score bonus: atomic number × 50 (much more rewarding than fusion)
       const fissionScore = heavyElement.number * 50;
@@ -1225,6 +1237,65 @@ export default function ElementSwapGame() {
               <RotateCcw className="w-4 h-4" />
               New
             </button>
+          </div>
+
+          {/* Nuclear Terminal Console */}
+          <div className="mb-3" style={{
+            fontFamily: "'Courier New', Courier, monospace",
+            background: '#010d01',
+            border: '1px solid #1a4a1a',
+            borderRadius: '4px',
+            padding: '8px 12px',
+            minHeight: '72px',
+            position: 'relative',
+            overflow: 'hidden',
+            boxShadow: 'inset 0 0 24px rgba(0,0,0,0.85), 0 0 8px rgba(0,160,0,0.08)',
+          }}>
+            {/* Scanlines overlay */}
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.18) 3px, rgba(0,0,0,0.18) 4px)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }} />
+            {/* Corner label */}
+            <div style={{
+              position: 'absolute',
+              top: '3px',
+              right: '8px',
+              fontSize: '8px',
+              color: '#1a5c1a',
+              letterSpacing: '0.12em',
+              zIndex: 2,
+            }}>SYS LOG</div>
+            {/* Console text */}
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              <div style={{ color: '#00aa00', fontSize: '11px', letterSpacing: '0.04em', opacity: 0.8 }}>
+                &gt; FUSION-TILES v1.0 | REACTOR ONLINE
+              </div>
+              {consoleEvents.length === 0 ? (
+                <div style={{ color: '#007700', fontSize: '12px', letterSpacing: '0.04em', marginTop: '3px' }}>
+                  &gt; AWAITING OPERATOR INPUT<span className="animate-pulse">_</span>
+                </div>
+              ) : (
+                consoleEvents.slice(-2).map((line, i, arr) => (
+                  <div
+                    key={i}
+                    style={{
+                      color: i === arr.length - 1 ? '#00ff55' : '#00aa44',
+                      fontSize: '12px',
+                      letterSpacing: '0.04em',
+                      marginTop: '3px',
+                      textShadow: i === arr.length - 1 ? '0 0 8px rgba(0,255,80,0.55)' : 'none',
+                      opacity: i === arr.length - 1 ? 1 : 0.65,
+                    }}
+                  >
+                    &gt; {line}{i === arr.length - 1 && <span className="animate-pulse" style={{ marginLeft: '2px' }}>_</span>}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Low moves warning */}
