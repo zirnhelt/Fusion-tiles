@@ -840,9 +840,16 @@ export default function ElementSwapGame() {
         const newEls = [...new Set(afterDecayGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
         return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
       });
-      if (removedElements.length > 0) {
-        setEliminatedElements(prev => new Set([...prev, ...removedElements]));
-        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
+      const { min: currentMinFission } = getDepositionRange(afterDecayGrid);
+      const newlyRetiredFission = removedElements.filter(num => num < currentMinFission);
+      setEliminatedElements(prev => {
+        const newSet = new Set(prev);
+        for (const el of prev) { if (el >= currentMinFission) newSet.delete(el); }
+        for (const num of newlyRetiredFission) { newSet.add(num); }
+        return newSet;
+      });
+      if (newlyRetiredFission.length > 0) {
+        newlyRetiredFission.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       const finalMoves = movesAfterFission + bonusMoves;
@@ -939,9 +946,16 @@ export default function ElementSwapGame() {
         const newEls = [...new Set(afterDecayGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
         return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
       });
-      if (removedElements.length > 0) {
-        setEliminatedElements(prev => new Set([...prev, ...removedElements]));
-        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
+      const { min: currentMinSwap } = getDepositionRange(afterDecayGrid);
+      const newlyRetiredSwap = removedElements.filter(num => num < currentMinSwap);
+      setEliminatedElements(prev => {
+        const newSet = new Set(prev);
+        for (const el of prev) { if (el >= currentMinSwap) newSet.delete(el); }
+        for (const num of newlyRetiredSwap) { newSet.add(num); }
+        return newSet;
+      });
+      if (newlyRetiredSwap.length > 0) {
+        newlyRetiredSwap.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       // Check if game should end
@@ -1065,9 +1079,6 @@ export default function ElementSwapGame() {
 
     // Remove obsolete low-tier elements (below deposition minimum, fewer than 3 on board)
     const { cleaned: nukeClean, removed: nukeRemoved } = cleanupObsoleteElements(newGrid);
-    if (nukeRemoved.length > 0) {
-      setEliminatedElements(prev => new Set([...prev, ...nukeRemoved]));
-    }
     if (nukeClean) {
       for (let j = 0; j < GRID_SIZE; j++) {
         let writePos = GRID_SIZE - 1;
@@ -1092,6 +1103,15 @@ export default function ElementSwapGame() {
     }
 
     setGrid([...newGrid]);
+
+    const { min: currentMinNuke } = getDepositionRange(newGrid);
+    const newlyRetiredNuke = nukeRemoved.filter(num => num < currentMinNuke);
+    setEliminatedElements(prev => {
+      const newSet = new Set(prev);
+      for (const el of prev) { if (el >= currentMinNuke) newSet.delete(el); }
+      for (const num of newlyRetiredNuke) { newSet.add(num); }
+      return newSet;
+    });
 
     // Update discovered elements after nuke
     setSeenElements(prev => {
@@ -1169,9 +1189,16 @@ export default function ElementSwapGame() {
         const newEls = [...new Set(finalGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
         return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
       });
-      if (removedElements.length > 0) {
-        setEliminatedElements(prev => new Set([...prev, ...removedElements]));
-        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
+      const { min: currentMinCatalyst } = getDepositionRange(finalGrid);
+      const newlyRetiredCatalyst = removedElements.filter(num => num < currentMinCatalyst);
+      setEliminatedElements(prev => {
+        const newSet = new Set(prev);
+        for (const el of prev) { if (el >= currentMinCatalyst) newSet.delete(el); }
+        for (const num of newlyRetiredCatalyst) { newSet.add(num); }
+        return newSet;
+      });
+      if (newlyRetiredCatalyst.length > 0) {
+        newlyRetiredCatalyst.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       const finalMoves = moves - CATALYST_COST + bonusMoves;
