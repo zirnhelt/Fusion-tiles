@@ -842,6 +842,7 @@ export default function ElementSwapGame() {
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       const finalMoves = movesAfterFission + bonusMoves;
@@ -940,6 +941,7 @@ export default function ElementSwapGame() {
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       // Check if game should end
@@ -1169,6 +1171,7 @@ export default function ElementSwapGame() {
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       const finalMoves = moves - CATALYST_COST + bonusMoves;
@@ -1246,7 +1249,7 @@ export default function ElementSwapGame() {
             border: '1px solid #1a4a1a',
             borderRadius: '4px',
             padding: '8px 12px',
-            minHeight: '72px',
+            minHeight: '90px',
             position: 'relative',
             overflow: 'hidden',
             boxShadow: 'inset 0 0 24px rgba(0,0,0,0.85), 0 0 8px rgba(0,160,0,0.08)',
@@ -1271,44 +1274,41 @@ export default function ElementSwapGame() {
             }}>SYS LOG</div>
             {/* Console text */}
             <div style={{ position: 'relative', zIndex: 2 }}>
-              <div style={{ color: '#00aa00', fontSize: '11px', letterSpacing: '0.04em', opacity: 0.8 }}>
+              <div style={{ color: '#00cc00', fontSize: '11px', letterSpacing: '0.04em', opacity: 0.9 }}>
                 &gt; FUSION-TILES v1.0 | REACTOR ONLINE
               </div>
               {consoleEvents.length === 0 ? (
-                <div style={{ color: '#007700', fontSize: '12px', letterSpacing: '0.04em', marginTop: '3px' }}>
+                <div style={{ color: '#009900', fontSize: '12px', letterSpacing: '0.04em', marginTop: '3px' }}>
                   &gt; AWAITING OPERATOR INPUT<span className="animate-pulse">_</span>
                 </div>
               ) : (
-                consoleEvents.slice(-2).map((line, i, arr) => (
-                  <div
-                    key={i}
-                    style={{
-                      color: i === arr.length - 1 ? '#00ff55' : '#00aa44',
-                      fontSize: '12px',
-                      letterSpacing: '0.04em',
-                      marginTop: '3px',
-                      textShadow: i === arr.length - 1 ? '0 0 8px rgba(0,255,80,0.55)' : 'none',
-                      opacity: i === arr.length - 1 ? 1 : 0.65,
-                    }}
-                  >
-                    &gt; {line}{i === arr.length - 1 && <span className="animate-pulse" style={{ marginLeft: '2px' }}>_</span>}
-                  </div>
-                ))
+                consoleEvents.slice(-3).map((line, i, arr) => {
+                  const isLatest = i === arr.length - 1;
+                  const isSpecial = line.startsWith('☢') || line.startsWith('⚛') || line.startsWith('FISSION:') || line.startsWith('✗');
+                  const color = isLatest
+                    ? (isSpecial ? '#ffcc00' : '#00ff55')
+                    : (isSpecial ? '#ffaa33' : '#00ee66');
+                  const shadow = isLatest
+                    ? (isSpecial ? '0 0 8px rgba(255,200,0,0.6)' : '0 0 8px rgba(0,255,80,0.55)')
+                    : 'none';
+                  return (
+                    <div
+                      key={i}
+                      style={{
+                        color,
+                        fontSize: '12px',
+                        letterSpacing: '0.04em',
+                        marginTop: '3px',
+                        textShadow: shadow,
+                      }}
+                    >
+                      &gt; {line}{isLatest && <span className="animate-pulse" style={{ marginLeft: '2px' }}>_</span>}
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
-
-          {/* Low moves warning */}
-          {!gameOver && moves > 0 && moves <= 5 && (
-            <div className={`mb-3 p-2 text-center rounded-lg font-semibold flex items-center justify-center gap-2 ${
-              moves <= 3
-                ? 'bg-red-100 text-red-700 border border-red-300 animate-pulse'
-                : 'bg-amber-100 text-amber-700 border border-amber-300'
-            }`}>
-              <AlertTriangle className="w-4 h-4" />
-              {moves <= 3 ? `Only ${moves} move${moves === 1 ? '' : 's'} left!` : `${moves} moves remaining`}
-            </div>
-          )}
 
           <div className="relative">
             {/* Nuke mode banner */}
@@ -1334,39 +1334,6 @@ export default function ElementSwapGame() {
                   const el = ELEMENTS[grid[catalystTarget.row][catalystTarget.col] - 1];
                   return <span className="ml-2">(→ all {el.symbol}, -{CATALYST_COST} moves)</span>;
                 })()}
-              </div>
-            )}
-
-            {fissionEvent && (
-              <div className="mb-3 p-3 bg-orange-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm">
-                <Atom className="w-5 h-5 shrink-0" />
-                <span>
-                  <span className="font-bold">Fission!</span>{' '}
-                  {fissionEvent.heavy.symbol} ({fissionEvent.heavy.weight}) →{' '}
-                  {fissionEvent.d1.symbol} ({fissionEvent.d1.weight}) + {fissionEvent.d2.symbol} ({fissionEvent.d2.weight})
-                </span>
-              </div>
-            )}
-
-            {spontFissionEvent && (
-              <div className="mb-3 p-3 bg-orange-400 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm animate-pulse">
-                <Atom className="w-5 h-5 shrink-0" />
-                <span>
-                  <span className="font-bold">⚛ Spontaneous Fission!</span>{' '}
-                  {spontFissionEvent.heavy.symbol} ({spontFissionEvent.heavy.weight}) →{' '}
-                  {spontFissionEvent.d1.symbol} ({spontFissionEvent.d1.weight}) + {spontFissionEvent.d2.symbol} ({spontFissionEvent.d2.weight})
-                </span>
-              </div>
-            )}
-
-            {decayEvent && (
-              <div className="mb-3 p-3 bg-yellow-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm">
-                <span className="text-base shrink-0">☢</span>
-                <span>
-                  <span className="font-bold">α Decay{decayEvent.count > 1 ? ` ×${decayEvent.count}` : ''}!</span>{' '}
-                  {decayEvent.from.symbol} → {decayEvent.to.symbol}{' '}
-                  <span className="font-normal opacity-90">(-2 protons)</span>
-                </span>
               </div>
             )}
 
