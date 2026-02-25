@@ -842,6 +842,7 @@ export default function ElementSwapGame() {
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       const finalMoves = movesAfterFission + bonusMoves;
@@ -940,6 +941,7 @@ export default function ElementSwapGame() {
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       // Check if game should end
@@ -1169,6 +1171,7 @@ export default function ElementSwapGame() {
       });
       if (removedElements.length > 0) {
         setEliminatedElements(prev => new Set([...prev, ...removedElements]));
+        removedElements.forEach(num => addConsoleEvent(`✗ RETIRED: ${ELEMENTS[num - 1].symbol}`));
       }
 
       const finalMoves = moves - CATALYST_COST + bonusMoves;
@@ -1281,7 +1284,7 @@ export default function ElementSwapGame() {
               ) : (
                 consoleEvents.slice(-3).map((line, i, arr) => {
                   const isLatest = i === arr.length - 1;
-                  const isSpecial = line.startsWith('☢') || line.startsWith('⚛') || line.startsWith('FISSION:');
+                  const isSpecial = line.startsWith('☢') || line.startsWith('⚛') || line.startsWith('FISSION:') || line.startsWith('✗');
                   const color = isLatest
                     ? (isSpecial ? '#ffcc00' : '#00ff55')
                     : (isSpecial ? '#ffaa33' : '#00ee66');
