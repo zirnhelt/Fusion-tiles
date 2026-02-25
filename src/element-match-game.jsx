@@ -124,7 +124,9 @@ const ELEMENTS = [
 ];
 
 const GRID_SIZE = 6;
-const FISSION_THRESHOLD = 83; // Bismuth (Z=83) and heavier can undergo fission when struck by Hydrogen
+const FISSION_THRESHOLD = 83;       // Bismuth (Z=83) and heavier can undergo fission when struck by Hydrogen
+const DECAY_THRESHOLD = 83;         // Z≥83: unstable, will alpha-decay over time if left unmatched
+const SPONT_FISSION_THRESHOLD = 100; // Z≥100: can spontaneously fission each turn
 
 export default function ElementSwapGame() {
   const [grid, setGrid] = useState([]);
@@ -147,6 +149,10 @@ export default function ElementSwapGame() {
   const [eliminatedElements, setEliminatedElements] = useState(new Set());
   const [fissionCells, setFissionCells] = useState([]);
   const [fissionEvent, setFissionEvent] = useState(null);
+  const [tileAges, setTileAges] = useState([]);        // parallel 2-D grid: moves since last change at each position
+  const [decayingCells, setDecayingCells] = useState([]); // cells flashing during alpha-decay animation
+  const [spontFissionEvent, setSpontFissionEvent] = useState(null); // notification for passive fission
+  const [decayEvent, setDecayEvent] = useState(null);    // notification for alpha decay
 
   useEffect(() => {
     resetGame();
@@ -258,6 +264,10 @@ export default function ElementSwapGame() {
     setEliminatedElements(new Set());
     setFissionCells([]);
     setFissionEvent(null);
+    setTileAges(createZeroAges());
+    setDecayingCells([]);
+    setSpontFissionEvent(null);
+    setDecayEvent(null);
   };
 
   const findMatches = (grid) => {
@@ -349,6 +359,129 @@ export default function ElementSwapGame() {
       daughter2: findElementByWeightBelow(daughter2Weight, heavyElementNum),
     };
   };
+
+  // ── Passive-decay helpers ────────────────────────────────────────────────────
+
+  const createZeroAges = () =>
+    Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+
+  // How many player actions before a heavy tile alpha-decays
+  const getDecayMoveLimit = (elementNum) => {
+    if (elementNum >= 110) return 4;
+    if (elementNum >= 100) return 6;
+    if (elementNum >= 90)  return 9;
+    return 12; // Z 83-89
+  };
+
+  // Probability of spontaneous fission per player action (0-12%)
+  const getSpontFissionChance = (elementNum) => {
+    if (elementNum < SPONT_FISSION_THRESHOLD) return 0;
+    return Math.min(0.12, (elementNum - 99) * 0.005 + 0.025);
+  };
+
+  // Alpha decay: atomic number drops by 2 (−2 protons)
+  const applyAlphaDecay = (elementNum) => Math.max(1, elementNum - 2);
+
+  // Build a new age grid: positions where element is unchanged get age+1, all others reset to 0
+  const computeNewAges = (oldGrid, oldAges, newGrid) =>
+    newGrid.map((newRow, i) =>
+      newRow.map((cell, j) => {
+        if (!cell) return 0;
+        return oldGrid[i]?.[j] === cell ? (oldAges[i]?.[j] || 0) + 1 : 0;
+      })
+    );
+
+  // Run one round of spontaneous fission + alpha decay after a player action.
+  // Manages animating internally so no clicks are accepted during animations.
+  const processPassiveEffects = async (currentGrid, currentAges) => {
+    let workGrid = currentGrid.map(r => [...r]);
+    let workAges  = currentAges.map(r => [...r]);
+    setAnimating(true);
+    try {
+      // 1. Spontaneous fission (Z ≥ 100) — at most one per turn ───────────────
+      let spontDone = false;
+      for (let i = 0; i < GRID_SIZE && !spontDone; i++) {
+        for (let j = 0; j < GRID_SIZE && !spontDone; j++) {
+          const el = workGrid[i][j];
+          if (!el || el < SPONT_FISSION_THRESHOLD) continue;
+          if (Math.random() >= getSpontFissionChance(el)) continue;
+
+          const heavyElement = ELEMENTS[el - 1];
+          const { daughter1, daughter2 } = calculateFissionProducts(el);
+          const d1El = ELEMENTS[daughter1 - 1];
+          const d2El = ELEMENTS[daughter2 - 1];
+
+          // Flash the fissioning cell orange (reuses fissionCells state)
+          setFissionCells([[i, j]]);
+          await new Promise(resolve => setTimeout(resolve, 600));
+
+          // Place daughter1 in current cell
+          workGrid[i][j] = daughter1;
+          workAges[i][j]  = 0;
+
+          // Place daughter2 in an adjacent cell (prefer empty, else overwrite)
+          const neighbors = [[i-1,j],[i+1,j],[i,j-1],[i,j+1]]
+            .filter(([r,c]) => r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE);
+          const emptyNeighbors = neighbors.filter(([r,c]) => !workGrid[r][c]);
+          const [tr, tc] = emptyNeighbors.length > 0
+            ? emptyNeighbors[Math.floor(Math.random() * emptyNeighbors.length)]
+            : neighbors[Math.floor(Math.random() * neighbors.length)];
+          workGrid[tr][tc] = daughter2;
+          workAges[tr][tc] = 0;
+
+          setFissionCells([]);
+          setGrid(workGrid.map(r => [...r]));
+          setSpontFissionEvent({ heavy: heavyElement, d1: d1El, d2: d2El });
+          setTimeout(() => setSpontFissionEvent(null), 4000);
+          spontDone = true;
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      // 2. Alpha decay (Z ≥ 83) — all tiles that hit their age limit ──────────
+      const decayTargets = [];
+      for (let i = 0; i < GRID_SIZE; i++) {
+        for (let j = 0; j < GRID_SIZE; j++) {
+          const el = workGrid[i][j];
+          if (!el || el < DECAY_THRESHOLD) continue;
+          if (workAges[i][j] >= getDecayMoveLimit(el)) decayTargets.push([i, j]);
+        }
+      }
+
+      if (decayTargets.length > 0) {
+        // Yellow flash on decaying tiles
+        setDecayingCells(decayTargets);
+        await new Promise(resolve => setTimeout(resolve, 700));
+
+        const decayedPairs = [];
+        for (const [i, j] of decayTargets) {
+          const el = workGrid[i][j];
+          if (el && el >= DECAY_THRESHOLD) {
+            const newEl = applyAlphaDecay(el);
+            decayedPairs.push({ from: ELEMENTS[el - 1], to: ELEMENTS[newEl - 1] });
+            workGrid[i][j] = newEl;
+            workAges[i][j]  = 0;
+          }
+        }
+
+        setDecayingCells([]);
+        setGrid(workGrid.map(r => [...r]));
+
+        if (decayedPairs.length > 0) {
+          setDecayEvent({ ...decayedPairs[0], count: decayedPairs.length });
+          setTimeout(() => setDecayEvent(null), 3500);
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    } finally {
+      setAnimating(false);
+    }
+
+    setTileAges(workAges.map(r => [...r]));
+    return { grid: workGrid, ages: workAges };
+  };
+
+  // ── End passive-decay helpers ────────────────────────────────────────────────
 
   // Choose what element to deposit into an empty cell.
   // When fission-eligible elements are on the board and H is scarce, occasionally
@@ -644,6 +777,8 @@ export default function ElementSwapGame() {
   };
 
   const executeFission = async (neutronRow, neutronCol, heavyRow, heavyCol) => {
+    const gridSnapshot = grid;
+    const agesSnapshot = tileAges.length > 0 ? tileAges : createZeroAges();
     setAnimating(true);
     try {
       const heavyNum = grid[heavyRow][heavyCol];
@@ -677,6 +812,10 @@ export default function ElementSwapGame() {
       // Process any cascade matches the daughter placements may have created
       const { grid: finalGrid, score: cascadeScore, bonusMoves, removedElements } = await processMatches(newGrid);
 
+      // Passive effects after cascades
+      const updatedAges = computeNewAges(gridSnapshot, agesSnapshot, finalGrid);
+      const { grid: afterDecayGrid } = await processPassiveEffects(finalGrid, updatedAges);
+
       const finalScore = score + fissionScore + cascadeScore;
       setScore(finalScore);
       if (finalScore > highScore) {
@@ -686,7 +825,7 @@ export default function ElementSwapGame() {
 
       setSeenElements(prev => {
         const prevSet = new Set(prev);
-        const newEls = [...new Set(finalGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
+        const newEls = [...new Set(afterDecayGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
         return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
       });
       if (removedElements.length > 0) {
@@ -746,6 +885,10 @@ export default function ElementSwapGame() {
       return;
     }
 
+    // Snapshot grid + ages at the start of this action (used by computeNewAges)
+    const gridSnapshot = grid;
+    const agesSnapshot = tileAges.length > 0 ? tileAges : createZeroAges();
+
     // Swap tiles
     const newGrid = grid.map(r => [...r]);
     [newGrid[row][col], newGrid[selRow][selCol]] = [newGrid[selRow][selCol], newGrid[row][col]];
@@ -762,6 +905,10 @@ export default function ElementSwapGame() {
       const targetPosition = { row, col };
       const { grid: finalGrid, score: gainedScore, bonusMoves, removedElements } = await processMatches(newGrid, targetPosition);
 
+      // Passive effects (decay / spontaneous fission) after cascades settle
+      const updatedAges = computeNewAges(gridSnapshot, agesSnapshot, finalGrid);
+      const { grid: afterDecayGrid } = await processPassiveEffects(finalGrid, updatedAges);
+
       const newScore = score + gainedScore;
       setScore(newScore);
       if (newScore > highScore) {
@@ -776,7 +923,7 @@ export default function ElementSwapGame() {
       // Update discovered elements and retired elements
       setSeenElements(prev => {
         const prevSet = new Set(prev);
-        const newEls = [...new Set(finalGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
+        const newEls = [...new Set(afterDecayGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
         return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
       });
       if (removedElements.length > 0) {
@@ -794,6 +941,13 @@ export default function ElementSwapGame() {
       setSelected(null);
       const newMoves = moves - 1;
       setMoves(newMoves);
+
+      // Passive effects still tick on non-matching moves
+      if (newMoves > 0) {
+        const updatedAges = computeNewAges(gridSnapshot, agesSnapshot, newGrid);
+        await processPassiveEffects(newGrid, updatedAges);
+      }
+
       if (newMoves <= 0) {
         setGameOver(true);
         setGameOverReason('No moves remaining');
@@ -1123,12 +1277,35 @@ export default function ElementSwapGame() {
               </div>
             )}
 
+            {spontFissionEvent && (
+              <div className="mb-3 p-3 bg-orange-400 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm animate-pulse">
+                <Atom className="w-5 h-5 shrink-0" />
+                <span>
+                  <span className="font-bold">⚛ Spontaneous Fission!</span>{' '}
+                  {spontFissionEvent.heavy.symbol} ({spontFissionEvent.heavy.weight}) →{' '}
+                  {spontFissionEvent.d1.symbol} ({spontFissionEvent.d1.weight}) + {spontFissionEvent.d2.symbol} ({spontFissionEvent.d2.weight})
+                </span>
+              </div>
+            )}
+
+            {decayEvent && (
+              <div className="mb-3 p-3 bg-yellow-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2 text-sm">
+                <span className="text-base shrink-0">☢</span>
+                <span>
+                  <span className="font-bold">α Decay{decayEvent.count > 1 ? ` ×${decayEvent.count}` : ''}!</span>{' '}
+                  {decayEvent.from.symbol} → {decayEvent.to.symbol}{' '}
+                  <span className="font-normal opacity-90">(-2 protons)</span>
+                </span>
+              </div>
+            )}
+
             <div className="grid grid-cols-6 gap-1 mb-4 bg-gray-200 p-2 rounded-lg">
             {grid.length > 0 && grid.map((row, i) =>
               row.map((cell, j) => {
                 const isHighlighted = highlightedCells.some(([r, c]) => r === i && c === j);
                 const isHint = hintCells.some(([r, c]) => r === i && c === j);
                 const isInFission = fissionCells.some(([r, c]) => r === i && c === j);
+                const isDecaying = decayingCells.some(([r, c]) => r === i && c === j);
 
                 // Check if this tile is in nuke preview area
                 const isInNukeArea = nukeMode && nukeTarget &&
@@ -1149,6 +1326,13 @@ export default function ElementSwapGame() {
                   (selEl === 1 && cell >= FISSION_THRESHOLD) ||
                   (selEl >= FISSION_THRESHOLD && cell === 1)
                 );
+
+                // Instability visual cues for heavy elements
+                const isUnstable = cell && cell >= DECAY_THRESHOLD;
+                const canSpontFission = cell && cell >= SPONT_FISSION_THRESHOLD;
+                const tileAge = tileAges[i]?.[j] ?? 0;
+                const decayLimit = isUnstable ? getDecayMoveLimit(cell) : Infinity;
+                const decayProgress = isUnstable ? Math.min(1, tileAge / decayLimit) : 0;
 
                 return (
                   <div
@@ -1175,6 +1359,8 @@ export default function ElementSwapGame() {
                           : 'opacity-60'
                         : isInFission
                         ? 'ring-4 ring-orange-500 scale-110 animate-pulse'
+                        : isDecaying
+                        ? 'ring-4 ring-yellow-400 scale-110 animate-pulse'
                         : isFissionHighlight
                         ? 'ring-4 ring-orange-400 scale-105 animate-pulse'
                         : selected?.row === i && selected?.col === j
@@ -1185,18 +1371,46 @@ export default function ElementSwapGame() {
                         ? hintType === 'direct'
                           ? 'ring-4 ring-yellow-400 scale-110 animate-pulse'
                           : 'ring-4 ring-amber-400 scale-110 animate-pulse'
+                        : isUnstable && decayProgress >= 0.75
+                        ? 'ring-2 ring-orange-400'
                         : 'hover:scale-105'
                     }`}
                     style={getTileStyle(cell)}
                   >
                     {cell && (
-                      <div className="w-full h-full flex flex-col items-center justify-center">
-                        <div className="text-xl font-bold text-gray-700">
+                      <div className="w-full h-full flex flex-col items-center justify-center relative overflow-hidden">
+                        {/* Instability glow overlay — intensifies as decay approaches */}
+                        {isUnstable && decayProgress > 0.25 && (
+                          <div
+                            className={`absolute inset-0 rounded pointer-events-none ${decayProgress >= 0.75 ? 'animate-pulse' : ''}`}
+                            style={{
+                              boxShadow: `inset 0 0 ${Math.round(decayProgress * 10)}px ${
+                                decayProgress >= 0.75 ? 'rgba(255,80,0,0.65)' :
+                                decayProgress >= 0.5  ? 'rgba(255,165,0,0.45)' :
+                                                        'rgba(255,220,0,0.30)'
+                              }`
+                            }}
+                          />
+                        )}
+                        <div className="text-xl font-bold text-gray-700 relative z-10">
                           {ELEMENTS[cell - 1].symbol}
                         </div>
-                        <div className="text-[10px] text-gray-500">
+                        <div className="text-[10px] text-gray-500 relative z-10">
                           {ELEMENTS[cell - 1].weight}
                         </div>
+                        {/* Radioactive indicator — ☢ for decaying, ⚛ for spont-fission candidates */}
+                        {isUnstable && (
+                          <div
+                            className={`absolute top-0 right-0.5 text-[9px] leading-none z-10 ${
+                              canSpontFission ? 'text-orange-600' : 'text-yellow-600'
+                            } ${decayProgress >= 0.75 ? 'animate-pulse' : 'opacity-70'}`}
+                            title={canSpontFission
+                              ? `Spontaneous fission risk · decays in ~${Math.max(0, decayLimit - tileAge)} moves`
+                              : `Radioactive · decays in ~${Math.max(0, decayLimit - tileAge)} moves`}
+                          >
+                            {canSpontFission ? '⚛' : '☢'}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1300,6 +1514,8 @@ export default function ElementSwapGame() {
             <span className="text-xs text-orange-600 font-semibold">Nuke: Destroy 3×3 area for -5 moves and -(sum of weights) score</span><br />
             <span className="text-xs text-green-700 font-semibold">Catalyst: Convert 4 adjacent tiles to one element for -{CATALYST_COST} moves</span><br />
             <span className="text-xs text-indigo-600">Non-matching swaps are allowed but cost a move</span><br />
+            <span className="text-xs text-yellow-700 font-semibold">☢ Radioactive decay: Heavy tiles (Bi+) that sit unmatched too long alpha-decay (−2 protons)</span><br />
+            <span className="text-xs text-orange-700 font-semibold">⚛ Spontaneous fission: Superheavy tiles (Fm+) may split on their own each turn</span><br />
             <span className="text-xs text-gray-500 mt-1 block">
               As you fuse heavier elements, the deposition pool shifts upward. Lighter elements with fewer than 3 tiles remaining are automatically retired from the board.
             </span>
