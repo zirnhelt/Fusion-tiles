@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Atom, RotateCcw, Trophy, Lightbulb, Zap, AlertTriangle, FlaskConical } from 'lucide-react';
+import { Atom, RotateCcw, Trophy, Lightbulb, Shuffle, AlertTriangle, FlaskConical } from 'lucide-react';
 
 // All 118 elements with atomic weights (rounded to nearest integer)
 const ELEMENTS = [
@@ -141,8 +141,6 @@ export default function ElementSwapGame() {
   const [hintCells, setHintCells] = useState([]);
   const [hintType, setHintType] = useState('direct'); // 'direct' = immediate match, 'path' = multi-step
   const [targetCell, setTargetCell] = useState(null);
-  const [nukeMode, setNukeMode] = useState(false);
-  const [nukeTarget, setNukeTarget] = useState(null);
   const [catalystMode, setCatalystMode] = useState(false);
   const [catalystTarget, setCatalystTarget] = useState(null);
   const [seenElements, setSeenElements] = useState([]);
@@ -867,11 +865,6 @@ export default function ElementSwapGame() {
   const handleTileClick = async (row, col) => {
     if (animating || gameOver) return;
 
-    if (nukeMode) {
-      await executeNuke(row, col);
-      return;
-    }
-
     if (catalystMode) {
       await executeCatalyst(row, col);
       return;
@@ -991,24 +984,37 @@ export default function ElementSwapGame() {
     };
   };
 
-  const toggleNukeMode = () => {
-    if (moves < 5 || animating || gameOver) return;
-    setNukeMode(!nukeMode);
-    setNukeTarget(null);
-    setSelected(null);
-  };
+  const SHUFFLE_COST = 3;
 
-  const getNukeArea = (centerRow, centerCol) => {
-    // Get 3x3 area centered on the clicked tile
-    const affectedCells = [];
-    for (let i = centerRow - 1; i <= centerRow + 1; i++) {
-      for (let j = centerCol - 1; j <= centerCol + 1; j++) {
-        if (i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE) {
-          affectedCells.push([i, j]);
-        }
+  const executeShuffle = async () => {
+    if (moves < SHUFFLE_COST || animating || gameOver) return;
+
+    setAnimating(true);
+    try {
+      // Collect all tiles, shuffle them, place back
+      const tiles = grid.flat();
+      for (let k = tiles.length - 1; k > 0; k--) {
+        const rand = Math.floor(Math.random() * (k + 1));
+        [tiles[k], tiles[rand]] = [tiles[rand], tiles[k]];
       }
+
+      const newGrid = Array.from({ length: GRID_SIZE }, (_, i) =>
+        tiles.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE)
+      );
+
+      setGrid([...newGrid]);
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const finalMoves = moves - SHUFFLE_COST;
+      setMoves(finalMoves);
+
+      if (finalMoves <= 0) {
+        setGameOver(true);
+        setGameOverReason('No moves remaining');
+      }
+    } finally {
+      setAnimating(false);
     }
-    return affectedCells;
   };
 
   const getCatalystArea = (centerRow, centerCol) => {
@@ -1021,131 +1027,12 @@ export default function ElementSwapGame() {
     ].filter(([i, j]) => i >= 0 && i < GRID_SIZE && j >= 0 && j < GRID_SIZE);
   };
 
-  const executeNuke = async (centerRow, centerCol) => {
-    if (moves < 5 || animating) return;
-
-    setAnimating(true);
-    try {
-    const affectedCells = getNukeArea(centerRow, centerCol);
-
-    // Calculate score penalty (sum of atomic weights)
-    let scorePenalty = 0;
-    affectedCells.forEach(([i, j]) => {
-      if (grid[i][j]) {
-        scorePenalty += ELEMENTS[grid[i][j] - 1].weight;
-      }
-    });
-
-    // Highlight affected area briefly
-    setHighlightedCells(affectedCells);
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Clear the 3x3 area
-    const newGrid = grid.map(r => [...r]);
-    affectedCells.forEach(([i, j]) => {
-      newGrid[i][j] = null;
-    });
-    
-    setHighlightedCells([]);
-    setGrid(newGrid);
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    // Drop tiles down
-    for (let j = 0; j < GRID_SIZE; j++) {
-      let writePos = GRID_SIZE - 1;
-      for (let i = GRID_SIZE - 1; i >= 0; i--) {
-        if (newGrid[i][j] !== null) {
-          if (i !== writePos) {
-            newGrid[writePos][j] = newGrid[i][j];
-            newGrid[i][j] = null;
-          }
-          writePos--;
-        }
-      }
-    }
-
-    setGrid([...newGrid]);
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    // Fill empty spaces
-    for (let j = 0; j < GRID_SIZE; j++) {
-      for (let i = 0; i < GRID_SIZE; i++) {
-        if (newGrid[i][j] === null) {
-          const depositionRange = getDepositionRange(newGrid);
-          newGrid[i][j] = Math.floor(Math.random() * (depositionRange.max - depositionRange.min + 1)) + depositionRange.min;
-        }
-      }
-    }
-
-    // Remove obsolete low-tier elements (below deposition minimum, fewer than 3 on board)
-    const { cleaned: nukeClean, removed: nukeRemoved } = cleanupObsoleteElements(newGrid);
-    if (nukeClean) {
-      for (let j = 0; j < GRID_SIZE; j++) {
-        let writePos = GRID_SIZE - 1;
-        for (let i = GRID_SIZE - 1; i >= 0; i--) {
-          if (newGrid[i][j] !== null) {
-            if (i !== writePos) {
-              newGrid[writePos][j] = newGrid[i][j];
-              newGrid[i][j] = null;
-            }
-            writePos--;
-          }
-        }
-      }
-      for (let j = 0; j < GRID_SIZE; j++) {
-        for (let i = 0; i < GRID_SIZE; i++) {
-          if (newGrid[i][j] === null) {
-            const depositionRange = getDepositionRange(newGrid);
-            newGrid[i][j] = pickDepositElement(depositionRange, newGrid);
-          }
-        }
-      }
-    }
-
-    setGrid([...newGrid]);
-
-    const { min: currentMinNuke } = getDepositionRange(newGrid);
-    const newlyRetiredNuke = nukeRemoved.filter(num => num < currentMinNuke);
-    setEliminatedElements(prev => {
-      const newSet = new Set(prev);
-      for (const el of prev) { if (el >= currentMinNuke) newSet.delete(el); }
-      for (const num of newlyRetiredNuke) { newSet.add(num); }
-      return newSet;
-    });
-
-    // Update discovered elements after nuke
-    setSeenElements(prev => {
-      const prevSet = new Set(prev);
-      const newEls = [...new Set(newGrid.flat().filter(el => el && !prevSet.has(el)))].sort((a, b) => a - b);
-      return newEls.length > 0 ? [...prev, ...newEls].sort((a, b) => a - b) : prev;
-    });
-
-    // Deduct score and moves
-    const newScore = Math.max(0, score - scorePenalty);
-    setScore(newScore);
-    setMoves(moves - 5);
-
-    setNukeMode(false);
-    setNukeTarget(null);
-
-    const finalMoves = moves - 5;
-    if (finalMoves <= 0) {
-      setGameOver(true);
-      setGameOverReason('No moves remaining');
-    }
-    } finally {
-      setAnimating(false);
-    }
-  };
-
   const CATALYST_COST = 3;
 
   const toggleCatalystMode = () => {
     if (moves < CATALYST_COST || animating || gameOver) return;
     setCatalystMode(!catalystMode);
     setCatalystTarget(null);
-    setNukeMode(false);
-    setNukeTarget(null);
     setSelected(null);
   };
 
@@ -1338,21 +1225,6 @@ export default function ElementSwapGame() {
           </div>
 
           <div className="relative">
-            {/* Nuke mode banner */}
-            {nukeMode && (
-              <div className="mb-3 p-3 bg-orange-500 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2">
-                <Zap className="w-5 h-5" />
-                Click a tile to destroy 3×3 area
-                {nukeTarget && (() => {
-                  const area = getNukeArea(nukeTarget.row, nukeTarget.col);
-                  const penalty = area.reduce((sum, [i, j]) => {
-                    return sum + (grid[i][j] ? ELEMENTS[grid[i][j] - 1].weight : 0);
-                  }, 0);
-                  return <span className="ml-2">(-{penalty} pts, -5 moves)</span>;
-                })()}
-              </div>
-            )}
-
             {catalystMode && (
               <div className="mb-3 p-3 bg-green-600 text-white text-center rounded-lg font-semibold flex items-center justify-center gap-2">
                 <FlaskConical className="w-5 h-5" />
@@ -1372,10 +1244,6 @@ export default function ElementSwapGame() {
                 const isInFission = fissionCells.some(([r, c]) => r === i && c === j);
                 const isDecaying = decayingCells.some(([r, c]) => r === i && c === j);
 
-                // Check if this tile is in nuke preview area
-                const isInNukeArea = nukeMode && nukeTarget &&
-                  getNukeArea(nukeTarget.row, nukeTarget.col).some(([r, c]) => r === i && c === j);
-
                 // Check if this tile is in catalyst preview area
                 const isInCatalystArea = catalystMode && catalystTarget &&
                   getCatalystArea(catalystTarget.row, catalystTarget.col).some(([r, c]) => r === i && c === j);
@@ -1387,7 +1255,7 @@ export default function ElementSwapGame() {
                 const selEl = selected ? grid[selected.row]?.[selected.col] : null;
                 const isAdjacentToSelected = selected &&
                   Math.abs(i - selected.row) + Math.abs(j - selected.col) === 1;
-                const isFissionHighlight = !nukeMode && !catalystMode && isAdjacentToSelected && (
+                const isFissionHighlight = !catalystMode && isAdjacentToSelected && (
                   (selEl === 1 && cell >= FISSION_THRESHOLD) ||
                   (selEl >= FISSION_THRESHOLD && cell === 1)
                 );
@@ -1404,19 +1272,13 @@ export default function ElementSwapGame() {
                     key={`${i}-${j}`}
                     onClick={() => handleTileClick(i, j)}
                     onMouseEnter={() => {
-                      if (nukeMode) setNukeTarget({ row: i, col: j });
                       if (catalystMode) setCatalystTarget({ row: i, col: j });
                     }}
                     onMouseLeave={() => {
-                      if (nukeMode) setNukeTarget(null);
                       if (catalystMode) setCatalystTarget(null);
                     }}
                     className={`aspect-square rounded cursor-pointer transition-all ${
-                      nukeMode
-                        ? isInNukeArea
-                          ? 'ring-4 ring-red-500 scale-105 bg-red-200'
-                          : 'opacity-50'
-                        : catalystMode
+                      catalystMode
                         ? isCatalystCenter
                           ? 'ring-4 ring-green-500 scale-110'
                           : isInCatalystArea
@@ -1486,16 +1348,12 @@ export default function ElementSwapGame() {
 
           <div className="flex justify-center gap-2 mt-3">
             <button
-              onClick={toggleNukeMode}
-              disabled={gameOver || animating || moves < 5}
-              className={`flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                nukeMode
-                  ? 'bg-red-600 text-white ring-2 ring-red-400'
-                  : 'bg-orange-500 text-white hover:bg-orange-600'
-              }`}
+              onClick={executeShuffle}
+              disabled={gameOver || animating || moves < SHUFFLE_COST}
+              className="flex items-center gap-1 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-orange-500 text-white hover:bg-orange-600"
             >
-              <Zap className="w-4 h-4" />
-              Nuke
+              <Shuffle className="w-4 h-4" />
+              Shuffle
             </button>
             <button
               onClick={toggleCatalystMode}
