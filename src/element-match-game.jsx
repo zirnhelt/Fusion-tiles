@@ -143,6 +143,8 @@ export default function ElementSwapGame() {
   const [targetCell, setTargetCell] = useState(null);
   const [catalystMode, setCatalystMode] = useState(false);
   const [catalystTarget, setCatalystTarget] = useState(null);
+  const [nukeMode, setNukeMode] = useState(false);
+  const [nukeTarget, setNukeTarget] = useState(null);
   const [seenElements, setSeenElements] = useState([]);
   const [eliminatedElements, setEliminatedElements] = useState(new Set());
   const [fissionCells, setFissionCells] = useState([]);
