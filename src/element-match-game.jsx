@@ -678,6 +678,9 @@ export default function ElementSwapGame() {
       // Merge matches into higher elements based on atomic weight
       matchesFound.forEach(match => {
         const elementNumber = newGrid[match[0][0]][match[0][1]];
+        // Skip if this match's tiles were already consumed by an overlapping match
+        // (can happen with cross/T-shaped matches where findMatches returns two overlapping groups)
+        if (!elementNumber || !match.every(([r, c]) => newGrid[r][c] === elementNumber)) return;
         const element = ELEMENTS[elementNumber - 1];
         
         // Sum atomic weights of all matched tiles
