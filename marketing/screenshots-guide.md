@@ -99,18 +99,14 @@ to demonstrate the responsive layout.
 
 ## Cover Image Note
 
-`cover.svg` in this folder is the **630×500 itch.io cover art**.
+`cover.png` (630×500) and `cover@2x.png` (1260×1000) in this folder are the **itch.io cover art**.
+itch also shows the cover on the game page's "Run game" launch screen, so re-upload it whenever the look changes:
+itch.io → Edit game → Cover image.
 
-Export it as PNG before uploading:
+The source is `cover.html`, generated from the game's real tile colours:
 ```bash
-# Using Inkscape (CLI):
-inkscape cover.svg --export-type=png --export-filename=cover.png -w 630 -h 500
+node scripts/cover.mjs   # regenerates marketing/cover.html
 
-# Using rsvg-convert:
-rsvg-convert -w 630 -h 500 cover.svg -o cover.png
-
-# Using Chrome headless:
-google-chrome --headless --screenshot=cover.png --window-size=630,500 cover.svg
+# then screenshot it at 630×500 (use --force-device-scale-factor=2 for the @2x version):
+google-chrome --headless --screenshot=marketing/cover.png --window-size=630,500 marketing/cover.html
 ```
-
-itch.io accepts the PNG directly as the cover/thumbnail image.
