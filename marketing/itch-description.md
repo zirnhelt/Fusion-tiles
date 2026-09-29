@@ -18,14 +18,15 @@ Hydrogen is where everyone starts.
 Oganesson is where no one has been.
 
 Fusion Tiles is a match-3 puzzle built on the real periodic table — all 118
-elements, from H to Og. Swap adjacent tiles to line up three or more of the
-same element. They fuse. Heavier tiles take their place. The board keeps
-evolving, and so does the challenge.
+elements, from H to Og. Swap neighbouring tiles to line up three or more of
+the same element and they fuse into the element nearest their combined
+weight. Three Helium make Carbon. Three Neon make Nickel. Keep going.
 
-You start with 40 moves. Every match spends one, but longer matches and chain
-reactions earn them back. Stay alive long enough and you'll watch the board
-shift from light gases like Helium and Neon into copper, iron, krypton —
-and beyond.
+Every swap costs a move, and you start with 40. A match gives the move back;
+longer matches and chain reactions pay extra. As heavier elements land on
+the board, the tiles dropping in climb the table with them — light gases
+give way to iron, copper, krypton, and eventually the unstable stuff at the
+bottom of the table.
 
 The further you go, the harder the board gets to read.
 That's the point.
@@ -34,21 +35,24 @@ That's the point.
 
 HOW IT WORKS
 
-Click a tile → click an adjacent tile → swap → match 3+ → fuse.
+Tap or swipe to swap two neighbouring tiles → match 3+ → fuse.
 
-Longer matches earn bonus moves:
-  4-match  → +2 moves
-  5-match  → +4 moves
-  6+ match → +6 moves
-  Cascade  → +3 moves per chain reaction
+Matches earn moves:
+  3-match  → +1 (the swap was free)
+  4-match  → +2
+  5-match  → +4
+  6+ match → +6
+  Cascade  → +3 per chain reaction
+  Fission  → +4
 
 Set up cascades and watch the board clear itself. Those are the moments.
 
 Anything heavier than the tiles dropping in is forged, and forged tiles
 fuse in pairs. Hydrogen is your neutron: fire it into a forged tile and
-it captures, stepping one element up the table. Fire it into anything
-from Bismuth up and the nucleus splits. Leave unstable tiles sitting too
-long and they decay.
+it's captured, stepping the tile one element up the table. Fire it into
+anything from Bismuth up and the nucleus splits. Leave unstable tiles
+sitting too long and they alpha-decay; the superheavies may split on
+their own. Fuse past Oganesson and the nucleus can't hold together.
 
 Every one of the 118 elements can be made. Oganesson takes a plan.
 
@@ -56,20 +60,22 @@ Every one of the 118 elements can be made. Oganesson takes a plan.
 
 WHEN YOU'RE STUCK
 
-💡 Hint     — highlights a good swap (free)
+💡 Hint     — highlights a good swap for 3 seconds (free)
 🔀 Shuffle  — rearranges the board (3 moves)
-⚗ Catalyst — turns a tile's neighbours into copies of it (3 moves)
+⚗ Catalyst — turns a tile's four neighbours into copies of it (3 moves)
 
 ────────────────────────────────────────
 
 FEATURES
 
 ✓ All 118 real elements with accurate atomic numbers and weights
+✓ Fusion by real atomic weight — no fixed recipe ladder
+✓ Neutron capture, fission, alpha decay and spontaneous fission
 ✓ A persistent periodic table that fills in as you discover elements
-✓ Fission, alpha decay and spontaneous fission for the heavy stuff
+✓ Discovery toasts, in-game tips and a live reactor console
 ✓ Swipe or tap controls, synthesized sound effects
 ✓ Difficulty scales the longer you survive
-✓ High score tracked locally
+✓ High score and heaviest element reached, saved on your device
 ✓ No download, no account — plays in your browser
 ✓ Works on desktop and mobile
 
@@ -108,7 +114,7 @@ casual, browser-game, html5, no-download
 
 - **Fullscreen button**: On
 - **Mobile friendly**: Yes
-- **Shared controls**: None (game uses click only)
+- **Shared controls**: None (click/tap or swipe; Enter starts from the title screen)
 - Recommended viewport: **1200 × 800** minimum (responsive, will scale)
 
 ---
