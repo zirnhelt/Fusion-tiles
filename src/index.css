@@ -230,7 +230,7 @@ body {
 .cell.mv { animation: tile-slide var(--dur, 180ms) var(--ease, cubic-bezier(.2, .8, .2, 1)) var(--delay, 0ms) backwards; }
 .cell.fall { animation: tile-fall var(--dur, 300ms) linear var(--delay, 0ms) backwards; }
 .cell.fusing {
-  transition: transform 210ms cubic-bezier(.55, 0, .85, .35), opacity 210ms ease-in;
+  transition: transform var(--fly, 340ms) cubic-bezier(.45, 0, .75, .4), opacity var(--fly, 340ms) ease-in;
   transform: translate(calc(var(--tx) * 100%), calc(var(--ty) * 100%)) scale(0.35);
   opacity: 0;
   z-index: 3;

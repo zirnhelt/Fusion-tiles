@@ -144,7 +144,7 @@ export default function Board({
               left: `${j * CELL}%`, top: `${i * CELL}%`, width: `${CELL}%`, height: `${CELL}%`,
             };
             if (m) Object.assign(style, { '--dx': m.dx ?? 0, '--dy': m.dy ?? 0, '--dur': `${m.dur}ms`, '--delay': `${m.delay || 0}ms` });
-            if (f?.kind === 'fuse') Object.assign(style, { '--tx': f.tx, '--ty': f.ty });
+            if (f?.kind === 'fuse') Object.assign(style, { '--tx': f.tx, '--ty': f.ty, ...(f.ms && { '--fly': `${f.ms}ms` }) });
             return (
               <div
                 key={m ? `${id}-${motion.key}` : id}
