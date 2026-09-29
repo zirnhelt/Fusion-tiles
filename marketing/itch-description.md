@@ -40,24 +40,34 @@ Longer matches earn bonus moves:
   4-match  → +2 moves
   5-match  → +4 moves
   6+ match → +6 moves
-  Cascade  → +2 moves per chain reaction
+  Cascade  → +3 moves per chain reaction
 
 Set up cascades and watch the board clear itself. Those are the moments.
+
+Anything heavier than the tiles dropping in is forged, and forged tiles
+fuse in pairs. Hydrogen is your neutron: fire it into a forged tile and
+it captures, stepping one element up the table. Fire it into anything
+from Bismuth up and the nucleus splits. Leave unstable tiles sitting too
+long and they decay.
+
+Every one of the 118 elements can be made. Oganesson takes a plan.
 
 ────────────────────────────────────────
 
 WHEN YOU'RE STUCK
 
-💡 Hint    — reveals a valid move for 3 seconds
-🔀 Shuffle — scrambles the board
-☢ Nuke    — full board reset (last resort)
+💡 Hint     — highlights a good swap (free)
+🔀 Shuffle  — rearranges the board (3 moves)
+⚗ Catalyst — turns a tile's neighbours into copies of it (3 moves)
 
 ────────────────────────────────────────
 
 FEATURES
 
 ✓ All 118 real elements with accurate atomic numbers and weights
-✓ Elements color-coded by periodic table category
+✓ A persistent periodic table that fills in as you discover elements
+✓ Fission, alpha decay and spontaneous fission for the heavy stuff
+✓ Swipe or tap controls, synthesized sound effects
 ✓ Difficulty scales the longer you survive
 ✓ High score tracked locally
 ✓ No download, no account — plays in your browser

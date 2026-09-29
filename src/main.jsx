@@ -1,10 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import ElementSwapGame from './element-match-game';
+import FusionTiles from './FusionTiles';
 import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ElementSwapGame />
+    <FusionTiles />
   </React.StrictMode>
 );
