@@ -15,6 +15,9 @@ export const SHUFFLE_COST = 3;
 export const CATALYST_COST = 3;
 export const CASCADE_MOVE_BONUS = 3;
 export const MAX_CASCADES = 20;
+// Heaviest total weight that fuses into something; beyond this the compound
+// nucleus can't hold together and splits instead (quasi-fission)
+export const MAX_FUSION_WEIGHT = ELEMENTS[ELEMENTS.length - 1].weight + 3;
 
 export const cloneGrid = (grid) => grid.map(r => [...r]);
 const emptyNumberGrid = () => Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
@@ -22,31 +25,35 @@ const inBounds = (r, c) => r >= 0 && r < GRID_SIZE && c >= 0 && c < GRID_SIZE;
 
 // ── Matching ────────────────────────────────────────────────────────────────
 
+// Forged elements are heavier than anything the deposit pool drops in. They
+// can't get more copies from new tiles, so they fuse in pairs instead of threes.
+export const isForged = (z, range) => z > range.max;
+export const matchLength = (z, range) => (isForged(z, range) ? 2 : 3);
+
 export const findMatches = (grid) => {
+  const range = getDepositionRange(grid);
   const matches = [];
-  for (let i = 0; i < GRID_SIZE; i++) {
-    for (let j = 0; j < GRID_SIZE - 2; j++) {
-      const value = grid[i][j];
-      if (value && grid[i][j + 1] === value && grid[i][j + 2] === value) {
-        const match = [[i, j], [i, j + 1], [i, j + 2]];
-        let k = j + 3;
-        while (k < GRID_SIZE && grid[i][k] === value) { match.push([i, k]); k++; }
-        matches.push(match);
-        j = k - 1;
+  const scan = (at) => {
+    let k = 0;
+    while (k < GRID_SIZE) {
+      const value = at(k);
+      let end = k + 1;
+      while (value && end < GRID_SIZE && at(end) === value) end++;
+      if (value && end - k >= matchLength(value, range)) {
+        matches.push(Array.from({ length: end - k }, (_, n) => k + n));
       }
+      k = end;
     }
+  };
+  for (let i = 0; i < GRID_SIZE; i++) {
+    const before = matches.length;
+    scan(j => grid[i][j]);
+    for (let m = before; m < matches.length; m++) matches[m] = matches[m].map(j => [i, j]);
   }
   for (let j = 0; j < GRID_SIZE; j++) {
-    for (let i = 0; i < GRID_SIZE - 2; i++) {
-      const value = grid[i][j];
-      if (value && grid[i + 1][j] === value && grid[i + 2][j] === value) {
-        const match = [[i, j], [i + 1, j], [i + 2, j]];
-        let k = i + 3;
-        while (k < GRID_SIZE && grid[k][j] === value) { match.push([k, j]); k++; }
-        matches.push(match);
-        i = k - 1;
-      }
-    }
+    const before = matches.length;
+    scan(i => grid[i][j]);
+    for (let m = before; m < matches.length; m++) matches[m] = matches[m].map(i => [i, j]);
   }
   return matches;
 };
@@ -68,8 +75,11 @@ export const allSwaps = () => {
   return swaps;
 };
 
-export const hasValidMoves = (grid) =>
-  allSwaps().some(([a, b]) => findMatches(swapCells(grid, a, b)).length > 0);
+// A move worth making: a swap (or neutron capture) that lines up a match, or a fission
+export const hasValidMoves = (grid) => allSwaps().some(([a, b]) => {
+  const preview = previewSwap(grid, a, b);
+  return preview.type === 'fission' || findMatches(preview.grid).length > 0;
+});
 
 // ── Fusion math ──────────────────────────────────────────────────────────────
 
@@ -88,18 +98,25 @@ export const findElementByWeight = (targetWeight, belowZ = Infinity) => {
   return closest.number;
 };
 
-export const fusionResult = (z, count) => findElementByWeight(ELEMENTS[z - 1].weight * count);
+// Random asymmetric 38–62% split of a nucleus, mimicking real fission mass
+// distributions. Daughters are always lighter than `belowZ`.
+const splitWeight = (weight, belowZ, rng) => {
+  const w1 = Math.round(weight * (0.38 + rng() * 0.24));
+  return [findElementByWeight(w1, belowZ), findElementByWeight(weight - w1, belowZ)];
+};
 
-// Two daughter nuclei from a heavy element: random asymmetric 38–62% split,
-// mimicking real fission mass distributions.
+// Fusing `count` tiles of z: the element nearest their combined weight, or —
+// past Oganesson — a quasi-fission split into two daughters.
+export const fuse = (z, count, rng = Math.random) => {
+  const total = ELEMENTS[z - 1].weight * count;
+  if (total <= MAX_FUSION_WEIGHT) return { to: findElementByWeight(total) };
+  return { split: splitWeight(total, ELEMENTS.length, rng) };
+};
+
+// Two daughter nuclei from a heavy element struck by a neutron
 export const calculateFissionProducts = (heavyZ, rng = Math.random) => {
-  const heavyWeight = ELEMENTS[heavyZ - 1].weight;
-  const ratio = 0.38 + rng() * 0.24;
-  const w1 = Math.round(heavyWeight * ratio);
-  return {
-    daughter1: findElementByWeight(w1, heavyZ),
-    daughter2: findElementByWeight(heavyWeight - w1, heavyZ),
-  };
+  const [daughter1, daughter2] = splitWeight(ELEMENTS[heavyZ - 1].weight, heavyZ, rng);
+  return { daughter1, daughter2 };
 };
 
 // ── Deposition (new tiles) ────────────────────────────────────────────────────
@@ -117,13 +134,17 @@ export const getDepositionRange = (grid) => {
   return { min, max: Math.min(min + 4, ELEMENTS.length) };
 };
 
-// When fission targets are on the board and H is scarce, occasionally deposit
-// H so the player always has a neutron available.
+// Once the pool has climbed past H, keep a trickle of neutrons coming (more
+// when there's something to fission) so capture and fission stay available.
 export const pickDepositElement = (range, grid, rng = Math.random) => {
-  const flat = grid.flat();
-  const hasFissionTargets = flat.some(v => v && v >= FISSION_THRESHOLD);
-  const hCount = flat.filter(v => v === 1).length;
-  if (hasFissionTargets && hCount < 2 && rng() < 0.15) return 1;
+  if (range.min > 1) {
+    const flat = grid.flat();
+    const hCount = flat.filter(v => v === 1).length;
+    if (hCount < 2) {
+      const hasFissionTargets = flat.some(v => v && v >= FISSION_THRESHOLD);
+      if (rng() < (hasFissionTargets ? 0.15 : 0.06)) return 1;
+    }
+  }
   return Math.floor(rng() * (range.max - range.min + 1)) + range.min;
 };
 
@@ -202,7 +223,7 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
       const z = grid[match[0][0]][match[0][1]];
       // Overlapping cross/T-shaped matches: skip a group whose tiles were already consumed
       if (!z || !match.every(([r, c]) => grid[r][c] === z)) continue;
-      const result = fusionResult(z, match.length);
+      const result = fuse(z, match.length, rng);
 
       stepBonus += 1;                          // every match refunds its move
       if (match.length >= 4) stepBonus += 1;   // 4-match = +2
@@ -213,11 +234,22 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
       const target = combo === 1 && targetPos && match.some(([r, c]) => r === targetPos.row && c === targetPos.col)
         ? [targetPos.row, targetPos.col]
         : match[match.length - 1];
-      grid[target[0]][target[1]] = result;
 
       const points = z * match.length * 10;
       stepScore += points;
-      fusions.push({ cells: match, from: z, to: result, target, points });
+      if (result.split) {
+        // Too heavy to hold together: one daughter at the target, one beside it
+        const [d1, d2] = result.split;
+        const cell = match
+          .filter(([r, c]) => r !== target[0] || c !== target[1])
+          .sort((a, b) => (Math.abs(a[0] - target[0]) + Math.abs(a[1] - target[1])) - (Math.abs(b[0] - target[0]) + Math.abs(b[1] - target[1])))[0];
+        grid[target[0]][target[1]] = d1;
+        grid[cell[0]][cell[1]] = d2;
+        fusions.push({ cells: match, from: z, to: d1, split: { d1, d2, cell }, target, points });
+      } else {
+        grid[target[0]][target[1]] = result.to;
+        fusions.push({ cells: match, from: z, to: result.to, target, points });
+      }
     }
 
     if (combo >= 2) stepBonus += CASCADE_MOVE_BONUS;
@@ -252,16 +284,55 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
   return { steps, grid, score: totalScore, bonusMoves: totalBonus, removedElements, combo };
 };
 
-// ── Fission ──────────────────────────────────────────────────────────────────
+// ── Neutrons: fission & capture ──────────────────────────────────────────────
 
-// Returns fission trigger info if swapping a↔b would fire a neutron into a heavy nucleus
-export const checkFissionTrigger = (grid, [r1, c1], [r2, c2]) => {
-  const a = grid[r1][c1];
-  const b = grid[r2][c2];
-  if (!a || !b) return null;
-  if (a === 1 && b >= FISSION_THRESHOLD) return { neutron: [r1, c1], heavy: [r2, c2] };
-  if (b === 1 && a >= FISSION_THRESHOLD) return { neutron: [r2, c2], heavy: [r1, c1] };
-  return null;
+// What swapping a↔b does. Firing H (a neutron) into a nucleus of Bi or heavier
+// splits it (fission); into a lighter forged tile it's captured and beta-decays
+// into the next element up (Z+1). Anything else is an ordinary swap.
+export const classifySwap = (grid, a, b) => {
+  const za = grid[a[0]][a[1]];
+  const zb = grid[b[0]][b[1]];
+  if (za && zb) {
+    for (const [n, t, zn, zt] of [[a, b, za, zb], [b, a, zb, za]]) {
+      if (zn !== 1 || zt === 1) continue;
+      if (zt >= FISSION_THRESHOLD) return { type: 'fission', neutron: n, heavy: t };
+      if (isForged(zt, getDepositionRange(grid))) return { type: 'capture', neutron: n, target: t };
+    }
+  }
+  return { type: 'swap' };
+};
+
+// The board right after a move, before gravity and cascades (for hints/validity)
+export const previewSwap = (grid, a, b) => {
+  const action = classifySwap(grid, a, b);
+  if (action.type === 'capture') {
+    const g = cloneGrid(grid);
+    g[action.target[0]][action.target[1]] += 1;
+    g[action.neutron[0]][action.neutron[1]] = null;
+    return { ...action, grid: g };
+  }
+  return { ...action, grid: action.type === 'swap' ? swapCells(grid, a, b) : grid };
+};
+
+// Gravity + refill after tiles leave the board mid-move
+export const settleGrid = (startGrid, rng = Math.random) => {
+  const grid = cloneGrid(startGrid);
+  const fall = emptyNumberGrid();
+  applyGravity(grid, fall);
+  fillEmpty(grid, fall, g => pickDepositElement(getDepositionRange(g), g, rng));
+  return { grid, fall };
+};
+
+export const resolveCapture = (grid, neutron, target, rng = Math.random) => {
+  const from = grid[target[0]][target[1]];
+  const to = from + 1;
+  const capturedGrid = cloneGrid(grid);
+  capturedGrid[target[0]][target[1]] = to;
+  capturedGrid[neutron[0]][neutron[1]] = null;
+  const { grid: settled, fall } = settleGrid(capturedGrid, rng);
+  // The new nucleus drops one row if the neutron was directly beneath it
+  const landed = neutron[1] === target[1] && neutron[0] > target[0] ? [target[0] + 1, target[1]] : target;
+  return { capturedGrid, grid: settled, fall, from, to, landed, score: to * 10 };
 };
 
 export const resolveFission = (grid, neutron, heavy, rng = Math.random) => {
@@ -306,7 +377,8 @@ export const resolvePassive = (startGrid, startAges, rng = Math.random) => {
   outer: for (let i = 0; i < GRID_SIZE; i++) {
     for (let j = 0; j < GRID_SIZE; j++) {
       const z = grid[i][j];
-      if (!z || z < SPONT_FISSION_THRESHOLD) continue;
+      // A superheavy gets at least one turn on the board before it can split
+      if (!z || z < SPONT_FISSION_THRESHOLD || ages[i][j] < 1) continue;
       if (rng() >= getSpontFissionChance(z)) continue;
       const { daughter1, daughter2 } = calculateFissionProducts(z, rng);
       grid[i][j] = daughter1;
@@ -403,20 +475,27 @@ export const applyCatalyst = (grid, r, c) => {
 
 // ── Hints ─────────────────────────────────────────────────────────────────────
 
-// 1) a swap that matches now, 2) the first swap of the best 2-swap path,
-// 3) the closest pair of the most common element as a "work here" nudge.
+// 1) a move that matches now (or a fission), 2) the first swap of the best
+// 2-swap path, 3) the closest pair of the most common element as a "work here" nudge.
 export const findHintMove = (grid) => {
   const swaps = allSwaps();
+  let fission = null;
   for (const [a, b] of swaps) {
-    if (findMatches(swapCells(grid, a, b)).length > 0) return { cells: [a, b], type: 'direct' };
+    const preview = previewSwap(grid, a, b);
+    if (findMatches(preview.grid).length > 0) return { cells: [a, b], type: 'direct' };
+    if (preview.type === 'fission') fission ||= { cells: [a, b], type: 'direct' };
   }
+  if (fission) return fission;
 
+  const plain = (g, [a, b]) => classifySwap(g, a, b).type === 'swap';
   let bestFirstSwap = null;
   let bestMatchSize = 0;
   for (const [a, b] of swaps) {
+    if (!plain(grid, [a, b])) continue;
     const g1 = swapCells(grid, a, b);
     for (const [c, d] of swaps) {
       if (a[0] === c[0] && a[1] === c[1] && b[0] === d[0] && b[1] === d[1]) continue;
+      if (!plain(g1, [c, d])) continue;
       const matches = findMatches(swapCells(g1, c, d));
       if (matches.length > 0) {
         const size = matches.reduce((sum, m) => sum + m.length, 0);

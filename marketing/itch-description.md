@@ -44,9 +44,13 @@ Longer matches earn bonus moves:
 
 Set up cascades and watch the board clear itself. Those are the moments.
 
-Push past Bismuth and the physics gets real: fire a Hydrogen neutron
-into a heavy nucleus to split it, and watch unstable tiles decay if you
-leave them sitting too long.
+Anything heavier than the tiles dropping in is forged, and forged tiles
+fuse in pairs. Hydrogen is your neutron: fire it into a forged tile and
+it captures, stepping one element up the table. Fire it into anything
+from Bismuth up and the nucleus splits. Leave unstable tiles sitting too
+long and they decay.
+
+Every one of the 118 elements can be made. Oganesson takes a plan.
 
 ────────────────────────────────────────
 

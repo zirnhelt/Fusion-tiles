@@ -89,6 +89,15 @@ export const sfx = {
     tone(110, { type: 'sine', dur: 0.6, vol: 0.6, slide: 38 });
     tone(880, { type: 'sawtooth', dur: 0.25, vol: 0.05, slide: 220 });
   },
+  capture() {
+    tone(260, { type: 'sine', dur: 0.22, vol: 0.3, slide: 1040 });
+    tone(1568, { type: 'triangle', dur: 0.18, vol: 0.08, at: 0.16 });
+    noise({ dur: 0.12, vol: 0.08, at: 0.16, filter: 'highpass', freq: 5000 });
+  },
+  quasi() {
+    noise({ dur: 0.45, vol: 0.4, freq: 2400, sweepTo: 200 });
+    tone(180, { type: 'sine', dur: 0.4, vol: 0.4, slide: 60 });
+  },
   decay() {
     for (let i = 0; i < 5; i++) noise({ dur: 0.03, vol: 0.25, at: i * 0.045 + Math.random() * 0.02, filter: 'highpass', freq: 3500 });
     tone(400, { type: 'sine', dur: 0.3, vol: 0.12, slide: 200 });

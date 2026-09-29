@@ -38,6 +38,11 @@ export function HelpModal({ onClose }) {
             <p className="text-center text-xs text-slate-400">3 × He (4 u) = 12 u → Carbon</p>
           </Section>
 
+          <Section title="Forged tiles" color="#fde047">
+            <p>Anything heavier than the tiles dropping in is <b className="text-white">forged</b> and gets a gold frame. Forged tiles fuse in <b className="text-white">pairs</b>. Lining up 3 takes some planning, since any 2 that touch fuse straight away.</p>
+            <p>Nothing heavier than Oganesson exists: overweight fusions split in two (<b className="text-white">quasi-fission</b>).</p>
+          </Section>
+
           <Section title="Moves" color="#86efac">
             <p>You start with {START_MOVES}. Every swap costs 1 — even ones that don't match. Matches earn moves back:</p>
             <p className="font-mono text-xs text-slate-200">3-match +1 · 4-match +2 · 5-match +4 · 6+ +6 · each chain reaction +{CASCADE_MOVE_BONUS}</p>
@@ -48,7 +53,9 @@ export function HelpModal({ onClose }) {
           </Section>
 
           <Section title="Nuclear physics" color="#fdba74">
-            <p><b className="text-white">Fission:</b> swap Hydrogen (a neutron) into Bismuth (Z 83) or heavier to split it in two: big score and +{FISSION_MOVE_BONUS} moves.</p>
+            <p>Hydrogen is your <b className="text-white">neutron</b>. Tap it to see what it can react with.</p>
+            <p><b className="text-white">Neutron capture:</b> swap H into a forged tile lighter than Bismuth. It gains a proton and becomes the next element up (Fe → Co).</p>
+            <p><b className="text-white">Fission:</b> swap H into Bismuth (Z 83) or heavier to split it in two: big score and +{FISSION_MOVE_BONUS} moves.</p>
             <p><b className="text-white">☢ Decay:</b> tiles from Bi up are radioactive. Leave one alone too long and it alpha-decays (−2 protons). The bar on the tile shows how long it has left.</p>
             <p><b className="text-white">Spontaneous fission:</b> superheavies (Fm, Z 100+) can split by themselves.</p>
           </Section>
@@ -57,7 +64,7 @@ export function HelpModal({ onClose }) {
             <p>New tiles come from a window of 5 elements that climbs as you forge heavier ones. Stragglers left below it are retired.</p>
           </Section>
 
-          <p className="px-1 text-center text-xs text-slate-400">Every element you create is saved to your periodic table. Can you fill it?</p>
+          <p className="px-1 text-center text-xs text-slate-400">Every element you create is saved to your periodic table. All 118 can be made. Tap one to see how.</p>
         </div>
 
         <button className="btn btn-primary mt-4 w-full py-3 text-base" onClick={onClose}>Start fusing</button>
@@ -104,7 +111,7 @@ export function GameOverModal({ score, highScore, isNewBest, run, discoveredCoun
         <div className="mb-4 grid grid-cols-4 gap-2">
           <Stat label="Fusions" value={run.fusions} />
           <Stat label="Best chain" value={`×${run.bestChain}`} />
-          <Stat label="Fissions" value={run.fissions} />
+          <Stat label="Nuclear" value={run.nuclear} />
           <Stat label="Elements" value={run.seen} />
         </div>
 

@@ -19,7 +19,7 @@ const ABORTED = Symbol('aborted');
 const FUSION_NAMES = { 4: 'BIG FUSION', 5: 'MEGA FUSION', 6: 'HYPER FUSION' };
 
 const newRun = (highScore, bestZ) => ({
-  fusions: 0, fissions: 0, bestChain: 0, maxZ: 1, seen: new Set(), newDiscoveries: [],
+  fusions: 0, fissions: 0, captures: 0, quasi: 0, bestChain: 0, maxZ: 1, seen: new Set(), newDiscoveries: [],
   startHighScore: highScore, startBestZ: bestZ,
 });
 
@@ -41,6 +41,21 @@ const introCells = () => {
     }
   }
   return cells;
+};
+
+// One-time explanations the first time a new mechanic shows up on the board
+const TIPS = {
+  forged: {
+    title: 'Forged tiles fuse in pairs',
+    text: 'Gold-framed tiles are heavier than anything that drops in. Line up just 2.',
+    applies: (g, range) => g.some(row => row.some(z => z && E.isForged(z, range))),
+  },
+  capture: {
+    title: 'Neutron capture',
+    text: 'Swap H into a forged tile below Bi: it gains a proton and becomes the next element.',
+    applies: (g, range) => g.some(row => row.includes(1)) &&
+      g.some(row => row.some(z => z && E.isForged(z, range) && z < E.FISSION_THRESHOLD)),
+  },
 };
 
 let logId = 0;
@@ -83,6 +98,7 @@ export default function FusionTiles() {
   const hintTimer = useRef(null);
   const restartTimer = useRef(null);
   const turnsTaken = useRef(0);
+  const tipsSeen = useRef(load(KEYS.tips, {}));
 
   // ── small helpers ──────────────────────────────────────────────────────────
   const pushLog = (text, tone = 'normal') => setLog(prev => [...prev.slice(-19), { id: ++logId, text, tone }]);
@@ -124,6 +140,16 @@ export default function FusionTiles() {
       setBestZ(run.maxZ);
       save(KEYS.bestZ, run.maxZ);
     }
+    if (!silent) {
+      const range = E.getDepositionRange(g);
+      for (const [key, tip] of Object.entries(TIPS)) {
+        if (tipsSeen.current[key] || !tip.applies(g, range)) continue;
+        tipsSeen.current = { ...tipsSeen.current, [key]: true };
+        save(KEYS.tips, tipsSeen.current);
+        pushLog(`i ${tip.title.toUpperCase()}`, 'discovery');
+        setToasts(prev => [...prev, { id: ++toastId, kind: 'tip', ...tip }]);
+      }
+    }
     if (newly.length === 0) return;
     newly.sort((a, b) => a - b);
     setDiscovered(discoveredRef.current);
@@ -133,9 +159,12 @@ export default function FusionTiles() {
     setFresh(new Set(newly));
     newly.forEach(z => pushLog(`★ DISCOVERED: ${sym(z)} (${el(z).name})`, 'discovery'));
     // Fold into a toast that's still waiting its turn rather than queueing a backlog
-    setToasts(prev => (prev.length >= 2
-      ? [...prev.slice(0, -1), { ...prev[prev.length - 1], elements: [...prev[prev.length - 1].elements, ...newly], total: discoveredRef.current.size }]
-      : [...prev, { id: ++toastId, elements: newly, total: discoveredRef.current.size }]));
+    setToasts(prev => {
+      const last = prev[prev.length - 1];
+      return prev.length >= 2 && last.elements
+        ? [...prev.slice(0, -1), { ...last, elements: [...last.elements, ...newly], total: discoveredRef.current.size }]
+        : [...prev, { id: ++toastId, elements: newly, total: discoveredRef.current.size }];
+    });
     sfx.discover();
   };
 
@@ -155,7 +184,7 @@ export default function FusionTiles() {
 
   useEffect(() => {
     if (toasts.length === 0) return undefined;
-    const t = setTimeout(() => setToasts(prev => prev.slice(1)), 2500);
+    const t = setTimeout(() => setToasts(prev => prev.slice(1)), toasts[0].kind === 'tip' ? 4200 : 2500);
     return () => clearTimeout(t);
   }, [toasts[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -203,7 +232,7 @@ export default function FusionTiles() {
     setSummary({
       isNewBest: finalScore > run.startHighScore && finalScore > 0,
       run: {
-        maxZ: run.maxZ, fusions: run.fusions, fissions: run.fissions, bestChain: Math.max(1, run.bestChain),
+        maxZ: run.maxZ, fusions: run.fusions, nuclear: run.fissions + run.captures + run.quasi, bestChain: Math.max(1, run.bestChain),
         seen: run.seen.size, newDiscoveries: run.newDiscoveries, newBestZ: run.maxZ > run.startBestZ,
       },
     });
@@ -228,18 +257,36 @@ export default function FusionTiles() {
       await pause(200);
 
       const pops = {};
+      let quasi = null;
       step.fusions.forEach(f => {
         pops[cellKey(...f.target)] = { kind: 'pop' };
-        burst(f.target, el(f.to).palette.glow, { count: 10 + f.cells.length * 2 });
         floater(f.target, `+${f.points}`, '#fde68a');
-        pushLog(`${f.cells.length} × ${sym(f.from)} → ${sym(f.to)}`);
+        if (f.split) {
+          // Too heavy to exist: the compound nucleus splits on the spot
+          quasi = f;
+          pops[cellKey(...f.split.cell)] = { kind: 'pop' };
+          burst(f.target, '#fb923c', { count: 24, spread: 22, size: 2, waveScale: 4 });
+          burst(f.split.cell, '#fde68a', { count: 12, spread: 14 });
+          pushLog(`✷ QUASI-FISSION: ${f.cells.length} × ${sym(f.from)} → ${sym(f.split.d1)} + ${sym(f.split.d2)}`, 'nuclear');
+          runRef.current.quasi += 1;
+        } else {
+          burst(f.target, el(f.to).palette.glow, { count: 10 + f.cells.length * 2 });
+          pushLog(`${f.cells.length} × ${sym(f.from)} → ${sym(f.to)}`);
+        }
       });
       setGrid(step.mergedGrid);
       setTileFx(pops);
       addScore(step.score);
-      sfx.fuse(Math.max(...step.fusions.map(f => f.to)));
-      if (step.combo >= 2) callout(`CHAIN ×${step.combo}`, `+${E.CASCADE_MOVE_BONUS} moves`, '#a78bfa');
-      else if (biggest >= 4) callout(FUSION_NAMES[Math.min(6, biggest)], `+${biggest >= 6 ? 6 : biggest === 5 ? 4 : 2} moves`, '#22d3ee');
+      if (quasi) {
+        sfx.quasi();
+        flash(quasi.target);
+        setShakeKey(k => k + 1);
+        callout('QUASI-FISSION', `too heavy → ${sym(quasi.split.d1)} + ${sym(quasi.split.d2)}`, '#fb923c');
+      } else {
+        sfx.fuse(Math.max(...step.fusions.map(f => f.to)));
+        if (step.combo >= 2) callout(`CHAIN ×${step.combo}`, `+${E.CASCADE_MOVE_BONUS} moves`, '#a78bfa');
+        else if (biggest >= 4) callout(FUSION_NAMES[Math.min(6, biggest)], `+${biggest >= 6 ? 6 : biggest === 5 ? 4 : 2} moves`, '#22d3ee');
+      }
       if (step.combo >= 3 || biggest >= 5) setShakeKey(k => k + 1);
       runRef.current.fusions += step.fusions.length;
       runRef.current.bestChain = Math.max(runRef.current.bestChain, step.combo);
@@ -332,8 +379,39 @@ export default function FusionTiles() {
 
     try {
       if (action.type === 'swap') {
-        const fission = E.checkFissionTrigger(g, action.from, action.to);
-        if (fission) {
+        const kind = E.classifySwap(g, action.from, action.to);
+        const fission = kind.type === 'fission' ? kind : null;
+        if (kind.type === 'capture') {
+          // Neutron flies into the nucleus, which beta-decays one step up the table
+          const { neutron, target } = kind;
+          const c = E.resolveCapture(g, neutron, target);
+          setTileFx({
+            [cellKey(...neutron)]: { kind: 'fuse', tx: target[1] - neutron[1], ty: target[0] - neutron[0] },
+            [cellKey(...target)]: { kind: 'capturing' },
+          });
+          sfx.capture();
+          await pause(230);
+          setGrid(c.capturedGrid);
+          setTileFx({ [cellKey(...target)]: { kind: 'pop' } });
+          burst(target, '#67e8f9', { count: 16, spread: 16 });
+          floater(target, '+1 p⁺', '#a5f3fc');
+          callout('NEUTRON CAPTURE', `${sym(c.from)} → ${sym(c.to)}`, '#22d3ee');
+          pushLog(`n CAPTURE: ${sym(c.from)} + n → ${sym(c.to)} (β⁻)`, 'nuclear');
+          runRef.current.captures += 1;
+          addScore(c.score);
+          noteElements(c.capturedGrid);
+          mv -= 1;
+          setMoves(mv);
+          showDelta(-1);
+          await pause(300);
+          setTileFx({});
+          setGrid(c.grid);
+          await pause(move(fallCells(c.fall)) + 20);
+          noteElements(c.grid);
+          g = c.grid;
+          gained += c.score;
+          targetPos = { row: c.landed[0], col: c.landed[1] };
+        } else if (fission) {
           const f = E.resolveFission(g, fission.neutron, fission.heavy);
           setTileFx({ [cellKey(...fission.heavy)]: { kind: 'fission' }, [cellKey(...fission.neutron)]: { kind: 'fission' } });
           sfx.fission();
@@ -562,6 +640,7 @@ export default function FusionTiles() {
             <Board
               grid={grid}
               ages={ages}
+              poolMax={depositRange.max}
               selected={selected}
               hint={hint}
               catalystMode={catalystMode}
@@ -619,7 +698,17 @@ export default function FusionTiles() {
         </footer>
       </main>
 
-      {toast && (
+      {toast?.kind === 'tip' && (
+        <div key={toast.id} className="toast toast-tip" role="status">
+          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-sky-300/40 bg-sky-400/10 text-xl">💡</div>
+          <div className="min-w-0 max-w-[280px]">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-300">New mechanic</div>
+            <div className="text-sm font-bold text-white">{toast.title}</div>
+            <div className="text-xs leading-snug text-slate-300">{toast.text}</div>
+          </div>
+        </div>
+      )}
+      {toast && toast.kind !== 'tip' && (
         <div key={toast.id} className="toast" role="status">
           <div className="flex -space-x-2">
             {toast.elements.slice(0, 4).map(z => <Tile key={z} z={z} size={44} showWeight={false} />)}

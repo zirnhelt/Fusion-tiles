@@ -8,12 +8,13 @@ export const tileColorVars = (z) => {
 
 // One element tile, styled like a periodic-table cell.
 // `size` (px) renders it standalone; without it the tile fills its board cell.
-export default function Tile({ z, className = '', decay = null, size = null, showWeight = true }) {
+export default function Tile({ z, className = '', decay = null, size = null, showWeight = true, forged = false }) {
   const e = el(z);
   const style = { ...tileColorVars(z) };
   if (size) Object.assign(style, { width: size, height: size, '--u': `${size / 16.67}px` });
+  const label = `${e.name}, atomic number ${e.number}${forged ? ', forged (fuses in pairs)' : ''}`;
   return (
-    <div className={`tile ${className}`} style={style} aria-label={`${e.name}, atomic number ${e.number}`}>
+    <div className={`tile ${forged ? 'is-forged' : ''} ${className}`} style={style} aria-label={label}>
       <span className="tile-z">{e.number}</span>
       <span className="tile-sym">{e.symbol}</span>
       {showWeight && decay == null && <span className="tile-w">{e.weight}</span>}

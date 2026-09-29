@@ -7,6 +7,7 @@ export const KEYS = {
   muted: 'fusionTiles.muted',
   seenHelp: 'fusionTiles.seenHelp',
   gamesPlayed: 'fusionTiles.gamesPlayed',
+  tips: 'fusionTiles.tips',
 };
 
 export const load = (key, fallback) => {

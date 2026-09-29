@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import Tile from './Tile.jsx';
 import {
-  GRID_SIZE, DECAY_THRESHOLD, FISSION_THRESHOLD, getDecayMoveLimit, getCatalystArea,
+  GRID_SIZE, DECAY_THRESHOLD, getDecayMoveLimit, getCatalystArea, classifySwap,
 } from '../game/engine.js';
 
 const CELL = 100 / GRID_SIZE;
@@ -29,7 +29,7 @@ export const makeCallout = (text, sub = '', color = '#38bdf8') => ({ id: ++fxId,
 export const makeFlash = (cell) => ({ id: ++fxId, ...cellCenter(cell) });
 
 export default function Board({
-  grid, ages, selected, hint, catalystMode, catalystHover, motion, tileFx, fx, shakeKey,
+  grid, ages, poolMax, selected, hint, catalystMode, catalystHover, motion, tileFx, fx, shakeKey,
   disabled, onTap, onSwipe, onHover,
 }) {
   const boardRef = useRef(null);
@@ -87,13 +87,15 @@ export default function Board({
     if (d && !d.done) onTap(d.i, d.j);
   };
 
-  const selZ = selected ? grid[selected.row]?.[selected.col] : null;
   const catalystArea = catalystMode && catalystHover ? getCatalystArea(catalystHover.row, catalystHover.col) : null;
 
   const stateClass = (i, j, z) => {
     const f = tileFx[`${i}-${j}`];
     if (f) {
-      const map = { matched: 'is-matched', pop: 'is-pop', retire: 'is-retire', decay: 'is-decaying', fission: 'is-fission', convert: 'is-convert' };
+      const map = {
+        matched: 'is-matched', pop: 'is-pop', retire: 'is-retire', decay: 'is-decaying',
+        fission: 'is-fission', convert: 'is-convert', capturing: 'is-capturing',
+      };
       if (map[f.kind]) return map[f.kind];
     }
     if (catalystMode && catalystHover) {
@@ -101,8 +103,12 @@ export default function Board({
       return at(catalystArea, i, j) ? 'is-catalyst-area' : 'is-dim';
     }
     if (selected?.row === i && selected?.col === j) return 'is-selected';
-    if (selected && Math.abs(i - selected.row) + Math.abs(j - selected.col) === 1 &&
-        ((selZ === 1 && z >= FISSION_THRESHOLD) || (selZ >= FISSION_THRESHOLD && z === 1))) return 'is-fission-target';
+    // Neighbours a selected neutron (or a selected target of one) would react with
+    if (selected && Math.abs(i - selected.row) + Math.abs(j - selected.col) === 1) {
+      const { type } = classifySwap(grid, [selected.row, selected.col], [i, j]);
+      if (type === 'fission') return 'is-fission-target';
+      if (type === 'capture') return 'is-capture-target';
+    }
     if (hint && at(hint.cells, i, j)) return hint.type === 'direct' ? 'is-hint' : 'is-hint-path';
     return '';
   };
@@ -145,7 +151,7 @@ export default function Board({
                 className={`cell ${m ? (m.kind === 'fall' ? 'fall' : 'mv') : ''} ${f?.kind === 'fuse' ? 'fusing' : ''}`}
                 style={style}
               >
-                <Tile z={z} className={`${state} ${heat}`} decay={radioactive ? progress : null} />
+                <Tile z={z} className={`${state} ${heat}`} decay={radioactive ? progress : null} forged={z > poolMax} />
               </div>
             );
           }))}
@@ -170,7 +176,7 @@ export default function Board({
           ))}
           {fx.callouts.map(c => (
             <div key={c.id} className="callout" style={{ '--cc': c.color }}>
-              <div className="callout-main">{c.text}</div>
+              <div className="callout-main" style={{ fontSize: `${Math.min(10, 130 / c.text.length)}cqw` }}>{c.text}</div>
               {c.sub && <div className="callout-sub">{c.sub}</div>}
             </div>
           ))}

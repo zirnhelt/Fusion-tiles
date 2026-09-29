@@ -339,6 +339,28 @@ body {
 .tile.is-hint { animation: hint-bob 0.9s ease-in-out infinite; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 0 2px #fde047, 0 0 22px 2px rgba(253, 224, 71, 0.65); }
 .tile.is-hint-path { animation: hint-bob 1.2s ease-in-out infinite; box-shadow: inset 0 1px 0 rgba(255,255,255,.45), 0 0 0 2px #fb923c, 0 0 20px 1px rgba(251, 146, 60, 0.55); }
 .tile.is-fission-target { animation: pulse-ring 0.8s ease-in-out infinite; }
+.tile.is-capture-target { animation: pulse-ring-cyan 0.8s ease-in-out infinite; }
+
+/* Forged: heavier than the deposit pool, fuses in pairs */
+.tile.is-forged::before {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  border-radius: 17%;
+  border: 1.5px solid rgba(253, 224, 71, 0.8);
+  box-shadow: 0 0 6px rgba(253, 224, 71, 0.45), inset 0 0 6px rgba(253, 224, 71, 0.3);
+  pointer-events: none;
+}
+.tile.is-capturing { animation: capture-flash 420ms ease-out both; }
+@keyframes capture-flash {
+  0% { filter: none; transform: scale(1); }
+  40% { filter: brightness(2.2) hue-rotate(-30deg) saturate(1.6); transform: scale(1.14); }
+  100% { filter: none; transform: scale(1); }
+}
+@keyframes pulse-ring-cyan {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.9), 0 0 12px rgba(34, 211, 238, 0.5); }
+  50% { box-shadow: 0 0 0 3px rgba(34, 211, 238, 1), 0 0 26px rgba(34, 211, 238, 0.9); }
+}
 .tile.is-matched { filter: brightness(1.35) saturate(1.2); --glow-size: 28px; transform: scale(1.06); }
 .tile.is-pop { animation: pop 340ms cubic-bezier(.2, .9, .3, 1.3) both; }
 .tile.is-retire { animation: retire 380ms ease-in forwards; }
@@ -650,6 +672,11 @@ body {
   animation: toast 2600ms cubic-bezier(.2, .9, .3, 1.1) forwards;
   pointer-events: none;
   min-width: 250px;
+}
+.toast-tip {
+  border-color: rgba(56, 189, 248, 0.5);
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.9), 0 0 30px -8px rgba(56, 189, 248, 0.5);
+  animation-duration: 4300ms;
 }
 @keyframes toast {
   0% { transform: translateY(-140%); opacity: 0; }

@@ -13,7 +13,12 @@ function ElementInfo({ z, found, onPick }) {
   const e = el(z);
   const routes = routesFor(z);
   const into = fusesInto(z);
-  const noRoute = !routes.deposit && routes.fusion.length === 0 && !routes.fission && !routes.decay;
+  const other = [
+    routes.deposit && 'deposited as a new tile',
+    routes.fission && 'a fission product',
+    routes.quasi && 'a quasi-fission product',
+    routes.decay && `alpha decay of ${el(Math.min(118, z + 2)).symbol}`,
+  ].filter(Boolean);
   return (
     <div className="mt-3 flex gap-3 rounded-xl border border-slate-500/20 bg-slate-900/50 p-3">
       <div className="shrink-0">
@@ -38,17 +43,21 @@ function ElementInfo({ z, found, onPick }) {
             {routes.fusion.length > 4 && <span className="text-slate-500">+{routes.fusion.length - 4} more</span>}
           </div>
         )}
-        {(routes.deposit || routes.fission || routes.decay) && (
-          <div className="text-slate-400">
-            {[routes.deposit && 'deposited as a new tile', routes.fission && 'a fission product', routes.decay && `alpha decay of ${el(Math.min(118, z + 2)).symbol}`]
-              .filter(Boolean).join(' · ').replace(/^./, c => c.toUpperCase())}
+        {routes.capture && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-1">
+            <span className="text-slate-400">Neutron capture on</span>
+            <Chip onClick={() => onPick(routes.capture)}>n + {el(routes.capture).symbol}</Chip>
           </div>
         )}
-        {noRoute && <div className="text-amber-300/80">No reaction in the current rules produces this one… yet.</div>}
+        {other.length > 0 && (
+          <div className="text-slate-400">{other.join(' · ').replace(/^./, c => c.toUpperCase())}</div>
+        )}
         {found && into.length > 0 && (
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <span className="text-slate-400">Fuses into</span>
-            {into.map(r => <Chip key={r.count} onClick={() => onPick(r.to)}>{r.count}× → {el(r.to).symbol}</Chip>)}
+            {into.map(r => (r.split
+              ? <span key={r.count} className="rounded-md border border-orange-400/40 bg-orange-400/10 px-1.5 py-0.5 font-mono text-[11px] text-orange-200" title="Heavier than Oganesson: splits in two">{r.count}× → split</span>
+              : <Chip key={r.count} onClick={() => onPick(r.to)}>{r.count}× → {el(r.to).symbol}</Chip>))}
           </div>
         )}
       </div>
@@ -67,7 +76,7 @@ export default function PeriodicTable({ discovered, runSeen, fresh, depositRange
             <span className="font-mono text-white">{discovered.size}</span> / 118 discovered · <span className="text-sky-300">{runSeen.size}</span> this run
           </div>
         </div>
-        <div className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-1 font-mono text-[11px] text-sky-200" title="New tiles are drawn from this range; it climbs as you fuse heavier elements">
+        <div className="rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-1 font-mono text-[11px] text-sky-200" title="New tiles are drawn from this range, which climbs as you fuse heavier elements. Anything heavier is forged (gold frame) and fuses in pairs.">
           Depositing {el(depositRange.min).symbol}–{el(depositRange.max).symbol}
         </div>
       </div>
