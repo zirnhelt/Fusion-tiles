@@ -14,6 +14,9 @@ import { HelpModal, GameOverModal } from './components/Modals.jsx';
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const cellKey = (i, j) => `${i}-${j}`;
 const sym = (z) => el(z).symbol;
+// How long tiles take to fly into their fusion target / a fired neutron takes to hit
+const FUSE_FLIGHT_MS = 340;
+const NEUTRON_FLIGHT_MS = 520;
 const EMPTY_FX = { bursts: [], floaters: [], callouts: [], flashes: [] };
 const ABORTED = Symbol('aborted');
 const FUSION_NAMES = { 4: 'BIG FUSION', 5: 'MEGA FUSION', 6: 'HYPER FUSION' };
@@ -254,7 +257,7 @@ export default function FusionTiles() {
         fusing[cellKey(r, c)] = isTarget ? { kind: 'matched' } : { kind: 'fuse', tx: f.target[1] - c, ty: f.target[0] - r };
       }));
       setTileFx(fusing);
-      await pause(200);
+      await pause(FUSE_FLIGHT_MS);
 
       const pops = {};
       let quasi = null;
@@ -386,11 +389,11 @@ export default function FusionTiles() {
           const { neutron, target } = kind;
           const c = E.resolveCapture(g, neutron, target);
           setTileFx({
-            [cellKey(...neutron)]: { kind: 'fuse', tx: target[1] - neutron[1], ty: target[0] - neutron[0] },
+            [cellKey(...neutron)]: { kind: 'fuse', tx: target[1] - neutron[1], ty: target[0] - neutron[0], ms: NEUTRON_FLIGHT_MS },
             [cellKey(...target)]: { kind: 'capturing' },
           });
           sfx.capture();
-          await pause(230);
+          await pause(NEUTRON_FLIGHT_MS + 20);
           setGrid(c.capturedGrid);
           setTileFx({ [cellKey(...target)]: { kind: 'pop' } });
           burst(target, '#67e8f9', { count: 16, spread: 16 });
