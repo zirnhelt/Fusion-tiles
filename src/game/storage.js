@@ -8,6 +8,9 @@ export const KEYS = {
   seenHelp: 'fusionTiles.seenHelp',
   gamesPlayed: 'fusionTiles.gamesPlayed',
   tips: 'fusionTiles.tips',
+  daily: 'fusionTiles.daily',       // { day, best } — today's best daily score
+  playerId: 'fusionTiles.playerId', // anonymous id for the daily leaderboard
+  playerName: 'fusionTiles.playerName',
 };
 
 export const load = (key, fallback) => {

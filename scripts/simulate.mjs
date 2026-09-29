@@ -13,6 +13,7 @@ import {
   findHintMove, shuffleBoard, maxElementOn,
 } from '../src/game/engine.js';
 import { ELEMENTS } from '../src/game/elements.js';
+import { mulberry32 } from '../src/game/daily.js';
 
 const args = Object.fromEntries(
   process.argv.slice(2).join(' ').split('--').filter(Boolean).map(s => s.trim().split(/\s+/)).map(([k, v]) => [k, v ?? true])
@@ -22,12 +23,6 @@ const MAX_TURNS = +(args['max-turns'] ?? 1500);
 const BOT = args.bot ?? 'greedy';
 const SEED = +(args.seed ?? 1);
 
-const mulberry32 = (a) => () => {
-  a |= 0; a = (a + 0x6d2b79f5) | 0;
-  let t = Math.imul(a ^ (a >>> 15), 1 | a);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-};
 
 const MILESTONES = [10, 26, 50, 83, 92, 100, 118];
 

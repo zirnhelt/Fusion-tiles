@@ -64,22 +64,49 @@ export const swapCells = (grid, [r1, c1], [r2, c2]) => {
   return g;
 };
 
-export const allSwaps = () => {
-  const swaps = [];
+const ALL_SWAPS = [];
+for (let i = 0; i < GRID_SIZE; i++) {
+  for (let j = 0; j < GRID_SIZE; j++) {
+    if (j < GRID_SIZE - 1) ALL_SWAPS.push([[i, j], [i, j + 1]]);
+    if (i < GRID_SIZE - 1) ALL_SWAPS.push([[i, j], [i + 1, j]]);
+  }
+}
+export const allSwaps = () => ALL_SWAPS;
+
+// Same answer as findMatches(grid).length > 0, without allocating. Hot path:
+// shuffles call it thousands of times, and the leaderboard Worker replays them.
+export const hasAnyMatch = (grid, range = getDepositionRange(grid)) => {
   for (let i = 0; i < GRID_SIZE; i++) {
-    for (let j = 0; j < GRID_SIZE; j++) {
-      if (j < GRID_SIZE - 1) swaps.push([[i, j], [i, j + 1]]);
-      if (i < GRID_SIZE - 1) swaps.push([[i, j], [i + 1, j]]);
+    let runR = 1;
+    let runC = 1;
+    for (let k = 1; k <= GRID_SIZE; k++) {
+      const r = k < GRID_SIZE ? grid[i][k] : null;
+      const prevR = grid[i][k - 1];
+      if (r && r === prevR) runR++;
+      else { if (prevR && runR >= matchLength(prevR, range)) return true; runR = 1; }
+      const c = k < GRID_SIZE ? grid[k][i] : null;
+      const prevC = grid[k - 1][i];
+      if (c && c === prevC) runC++;
+      else { if (prevC && runC >= matchLength(prevC, range)) return true; runC = 1; }
     }
   }
-  return swaps;
+  return false;
 };
 
 // A move worth making: a swap (or neutron capture) that lines up a match, or a fission
-export const hasValidMoves = (grid) => allSwaps().some(([a, b]) => {
-  const preview = previewSwap(grid, a, b);
-  return preview.type === 'fission' || findMatches(preview.grid).length > 0;
-});
+export const hasValidMoves = (grid) => {
+  const g = cloneGrid(grid);
+  const range = getDepositionRange(g); // a plain swap never changes it
+  return ALL_SWAPS.some(([a, b]) => {
+    const action = classifySwap(g, a, b);
+    if (action.type === 'fission') return true;
+    if (action.type === 'capture') return hasAnyMatch(previewSwap(g, a, b).grid);
+    [g[a[0]][a[1]], g[b[0]][b[1]]] = [g[b[0]][b[1]], g[a[0]][a[1]]];
+    const found = hasAnyMatch(g, range);
+    [g[a[0]][a[1]], g[b[0]][b[1]]] = [g[b[0]][b[1]], g[a[0]][a[1]]];
+    return found;
+  });
+};
 
 // ── Fusion math ──────────────────────────────────────────────────────────────
 
@@ -435,7 +462,7 @@ const createRandomGrid = (rng) => {
 
 export const createStartGrid = (rng = Math.random) => {
   let grid = createRandomGrid(rng);
-  for (let attempts = 0; attempts < 200 && (findMatches(grid).length > 0 || !hasValidMoves(grid)); attempts++) {
+  for (let attempts = 0; attempts < 200 && (hasAnyMatch(grid) || !hasValidMoves(grid)); attempts++) {
     grid = createRandomGrid(rng);
   }
   return grid;
@@ -458,7 +485,7 @@ export const shuffleBoard = (grid, ages, rng = Math.random) => {
     // origin[i][j] = where the tile now at [i][j] came from (for animation)
     const origin = Array.from({ length: GRID_SIZE }, (_, i) => p.slice(i * GRID_SIZE, (i + 1) * GRID_SIZE).map(x => [x[2], x[3]]));
     best = { grid: g, ages: a, origin };
-    if (findMatches(g).length === 0 && hasValidMoves(g)) break;
+    if (!hasAnyMatch(g) && hasValidMoves(g)) break;
   }
   return best;
 };
@@ -525,4 +552,94 @@ export const findHintMove = (grid) => {
     }
   }
   return bestPair ? { cells: bestPair, type: 'path' } : null;
+};
+
+// ── Turns ─────────────────────────────────────────────────────────────────────
+
+const adjacent = (a, b) => Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) === 1;
+const validCell = (p) => Array.isArray(p) && p.length === 2 && p.every(Number.isInteger) && inBounds(p[0], p[1]);
+
+// Whether the player could make this move right now (the UI enforces the same rules)
+export const isLegalAction = (state, action) => {
+  if (!action || state.moves <= 0) return false;
+  if (action.type === 'swap') return validCell(action.from) && validCell(action.to) && adjacent(action.from, action.to);
+  if (action.type === 'catalyst') return validCell(action.cell) && state.moves >= CATALYST_COST;
+  if (action.type === 'shuffle') return state.moves >= SHUFFLE_COST;
+  return false;
+};
+
+// One whole player turn: action → cascades → radioactivity. Returns every
+// intermediate result (the UI animates them) plus the committed state. `rng`
+// is consumed in a fixed order, so a seed plus the action list replays a game
+// exactly — that's how the daily leaderboard verifies scores.
+export const playAction = (state, action, rng = Math.random) => {
+  const { grid: startGrid, ages: startAges, moves, score } = state;
+  const t = { action, grid: startGrid, ages: startAges, moves, score, gained: 0, bonus: 0, maxZ: maxElementOn(startGrid) };
+  const seen = (g) => { t.maxZ = Math.max(t.maxZ, maxElementOn(g)); };
+
+  if (action.type === 'shuffle') {
+    const sh = shuffleBoard(startGrid, startAges, rng);
+    return { ...t, shuffle: sh, grid: sh.grid, ages: sh.ages, moves: moves - SHUFFLE_COST, over: moves - SHUFFLE_COST <= 0 };
+  }
+
+  let g = startGrid;
+  let mv = moves;
+  let targetPos = null;
+  if (action.type === 'swap') {
+    const kind = classifySwap(g, action.from, action.to);
+    if (kind.type === 'capture') {
+      t.capture = { ...kind, ...resolveCapture(g, kind.neutron, kind.target, rng) };
+      seen(t.capture.capturedGrid);
+      g = t.capture.grid;
+      t.gained += t.capture.score;
+      mv -= 1;
+      targetPos = { row: t.capture.landed[0], col: t.capture.landed[1] };
+    } else if (kind.type === 'fission') {
+      t.fission = { ...kind, ...resolveFission(g, kind.neutron, kind.heavy, rng) };
+      g = t.fission.grid;
+      t.gained += t.fission.score;
+      mv += -1 + FISSION_MOVE_BONUS;
+    } else {
+      g = swapCells(g, action.from, action.to);
+      t.swapped = g;
+      mv -= 1;
+      targetPos = { row: action.to[0], col: action.to[1] };
+    }
+  } else if (action.type === 'catalyst') {
+    const [r, c] = action.cell;
+    g = applyCatalyst(g, r, c);
+    t.catalyst = { grid: g, from: startGrid[r][c], area: getCatalystArea(r, c) };
+    mv -= CATALYST_COST;
+    targetPos = { row: r, col: c };
+  }
+  t.movesAfterAction = mv;
+
+  t.cascade = resolveCascade(g, targetPos, rng);
+  t.cascade.steps.forEach(s => seen(s.mergedGrid));
+  g = t.cascade.grid;
+  seen(g);
+  t.gained += t.cascade.score;
+  t.bonus += t.cascade.bonusMoves;
+
+  let a = computeNewAges(startGrid, startAges, g);
+  if (mv + t.bonus > 0) {
+    t.passive = resolvePassive(g, a, rng);
+    g = t.passive.grid;
+    a = t.passive.ages;
+    if (t.passive.spont || t.passive.decays.length > 0) {
+      // Decay or fission products can line up a fresh chain reaction
+      t.after = resolveCascade(t.passive.grid, null, rng);
+      if (t.after.steps.length > 0) {
+        t.after.steps.forEach(s => seen(s.mergedGrid));
+        g = t.after.grid;
+        a = computeNewAges(t.passive.grid, t.passive.ages, g, 0);
+        t.gained += t.after.score;
+        t.bonus += t.after.bonusMoves;
+      }
+    }
+  }
+  seen(g);
+
+  const finalMoves = mv + t.bonus;
+  return { ...t, grid: g, ages: a, moves: finalMoves, score: score + t.gained, over: finalMoves <= 0 };
 };
