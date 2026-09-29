@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { Atom, HelpCircle, Play, Volume2, VolumeX } from 'lucide-react';
-import { el } from '../game/elements.js';
 import Tile from './Tile.jsx';
 
 const RULES = [
@@ -9,15 +8,8 @@ const RULES = [
   ['03', 'Climb', 'all 118. Every swap costs a move, so make them count'],
 ];
 
-const Stat = ({ label, children }) => (
-  <div className="title-stat">
-    <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{label}</div>
-    <div className="stat-value mt-0.5 text-lg font-bold text-white">{children}</div>
-  </div>
-);
-
-// Opening screen: brand, a looping fusion demo, and either the core rules (first visit) or your records.
-export default function TitleScreen({ leaving, firstVisit, highScore, bestZ, discoveredCount, muted, onToggleMute, onStart, onHelp }) {
+// First-visit opening screen: brand, a looping fusion demo and the three core rules.
+export default function TitleScreen({ leaving, muted, onToggleMute, onStart, onHelp }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Enter' && !e.repeat) { e.preventDefault(); onStart(); } };
     window.addEventListener('keydown', onKey);
@@ -55,29 +47,17 @@ export default function TitleScreen({ leaving, firstVisit, highScore, bestZ, dis
           <Tile z={6} size={60} className="demo-out" />
         </div>
 
-        {firstVisit ? (
-          <ol className="title-rules">
-            {RULES.map(([n, verb, rest]) => (
-              <li key={n}>
-                <span className="font-mono text-[11px] text-sky-400/70">{n}</span>
-                <span><b className="text-white">{verb}</b> {rest}</span>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <div className="grid w-full grid-cols-3 gap-2">
-            <Stat label="Best score">{highScore.toLocaleString()}</Stat>
-            <Stat label="Heaviest">
-              <span className="inline-flex items-center gap-1.5">
-                {el(bestZ).symbol}<span className="font-mono text-xs font-normal text-slate-400">Z{bestZ}</span>
-              </span>
-            </Stat>
-            <Stat label="Table">{discoveredCount}<span className="font-mono text-xs font-normal text-slate-400">/118</span></Stat>
-          </div>
-        )}
+        <ol className="title-rules">
+          {RULES.map(([n, verb, rest]) => (
+            <li key={n}>
+              <span className="font-mono text-[11px] text-sky-400/70">{n}</span>
+              <span><b className="text-white">{verb}</b> {rest}</span>
+            </li>
+          ))}
+        </ol>
 
         <button className="btn btn-primary title-cta mt-6 w-full" onClick={onStart} autoFocus>
-          <Play className="h-5 w-5 fill-current" /> {firstVisit ? 'Start the reactor' : 'New run'}
+          <Play className="h-5 w-5 fill-current" /> Start the reactor
         </button>
         <button className="mt-3 inline-flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-sky-200" onClick={onHelp}>
           <HelpCircle className="h-4 w-4" /> How to play

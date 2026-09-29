@@ -786,14 +786,6 @@ body {
   background: rgba(13, 20, 40, 0.6);
 }
 
-.title-stat {
-  padding: 10px 6px;
-  text-align: center;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: rgba(13, 20, 40, 0.6);
-}
-
 .title-cta {
   padding: 0.95rem 1rem;
   font-size: 1.05rem;

@@ -92,8 +92,8 @@ export default function FusionTiles() {
   const [toasts, setToasts] = useState([]);
   const [muted, setMuted] = useState(() => !!load(KEYS.muted, false));
   const [showHelp, setShowHelp] = useState(false);
-  const [title, setTitle] = useState('open'); // open → leaving → gone
-  const [firstVisit] = useState(() => !load(KEYS.seenHelp, false));
+  // Title screen greets first-time players only; returning players go straight to the board
+  const [title, setTitle] = useState(() => (load(KEYS.seenHelp, false) ? 'gone' : 'open')); // open → leaving → gone
   const [summary, setSummary] = useState(null);
   const [restartArmed, setRestartArmed] = useState(false);
 
@@ -179,6 +179,7 @@ export default function FusionTiles() {
   useEffect(() => {
     sfx.setMuted(muted);
     noteElements(grid, { silent: true });
+    if (title === 'gone') move(introCells());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -743,10 +744,6 @@ export default function FusionTiles() {
       {title !== 'gone' && (
         <TitleScreen
           leaving={title === 'leaving'}
-          firstVisit={firstVisit}
-          highScore={highScore}
-          bestZ={bestZ}
-          discoveredCount={discovered.size}
           muted={muted}
           onToggleMute={toggleMute}
           onStart={startFromTitle}
