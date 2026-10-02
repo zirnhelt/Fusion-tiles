@@ -27,7 +27,7 @@ export function useAnimatedNumber(value, duration = 650) {
 const movesTone = (m) =>
   m <= 3 ? 'text-red-400 animate-pulse' : m <= 5 ? 'text-red-400' : m <= 10 ? 'text-orange-300' : 'text-sky-300';
 
-export default function Hud({ score, moves, highScore, movesDelta, runMaxZ, bestZ }) {
+export default function Hud({ score, moves, highScore, bestLabel = 'Best', movesDelta, runMaxZ, bestZ }) {
   const shownScore = useAnimatedNumber(score);
   const heaviest = el(runMaxZ);
   const pct = (z) => `${((z - 1) / (ELEMENTS.length - 1)) * 100}%`;
@@ -52,7 +52,7 @@ export default function Hud({ score, moves, highScore, movesDelta, runMaxZ, best
           )}
         </div>
         <div>
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">Best</div>
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-400">{bestLabel}</div>
           <div className="stat-value flex items-center justify-center gap-1 text-2xl font-bold text-amber-300">
             <Trophy className="h-4 w-4" />{highScore.toLocaleString()}
           </div>

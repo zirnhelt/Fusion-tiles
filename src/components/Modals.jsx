@@ -3,6 +3,7 @@ import { X, Trophy, Sparkles, RotateCcw } from 'lucide-react';
 import { el } from '../game/elements.js';
 import { CASCADE_MOVE_BONUS, CATALYST_COST, SHUFFLE_COST, START_MOVES, FISSION_MOVE_BONUS } from '../game/engine.js';
 import Tile from './Tile.jsx';
+import { DailyResult } from './Leaderboard.jsx';
 
 const Section = ({ title, color, children }) => (
   <section className="rounded-xl border border-slate-500/20 bg-slate-900/40 p-3" style={{ borderLeft: `2px solid ${color}` }}>
@@ -64,6 +65,10 @@ export function HelpModal({ onClose }) {
             <p>New tiles come from a window of 5 elements that climbs as you forge heavier ones. Stragglers left below it are retired.</p>
           </Section>
 
+          <Section title="Daily reactor" color="#fcd34d">
+            <p>One board a day, the same for everyone, with the same tiles dropping in. Post your best run to the leaderboard. A new board starts at midnight UTC.</p>
+          </Section>
+
           <p className="px-1 text-center text-xs text-slate-400">Every element you create is saved to your periodic table. All 118 can be made. Tap one to see how.</p>
         </div>
 
@@ -80,7 +85,7 @@ const Stat = ({ label, value }) => (
   </div>
 );
 
-export function GameOverModal({ score, highScore, isNewBest, run, discoveredCount, onPlayAgain }) {
+export function GameOverModal({ score, highScore, isNewBest, run, discoveredCount, onPlayAgain, daily }) {
   const heaviest = el(run.maxZ);
   return (
     <div className="overlay">
@@ -92,9 +97,9 @@ export function GameOverModal({ score, highScore, isNewBest, run, discoveredCoun
           <div className="stat-value text-5xl font-bold text-white" style={{ textShadow: '0 0 30px rgba(56,189,248,.5)' }}>{score.toLocaleString()}</div>
           {isNewBest ? (
             <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-300/10 px-3 py-1 text-sm font-semibold text-amber-200">
-              <Trophy className="h-4 w-4" /> New best score!
+              <Trophy className="h-4 w-4" /> {daily ? "New best today!" : 'New best score!'}
             </div>
-          ) : (
+          ) : !daily && (
             <div className="mt-1 text-sm text-slate-400">Best: {highScore.toLocaleString()}</div>
           )}
         </div>
@@ -128,8 +133,10 @@ export function GameOverModal({ score, highScore, isNewBest, run, discoveredCoun
           <div className="mt-2 font-mono text-xs text-slate-400">Periodic table: {discoveredCount} / 118</div>
         </div>
 
+        {daily && <DailyResult {...daily} score={score} maxZ={run.maxZ} />}
+
         <button className="btn btn-primary w-full py-3 text-base" onClick={onPlayAgain}>
-          <RotateCcw className="h-4 w-4" /> Play again
+          <RotateCcw className="h-4 w-4" /> {daily ? "Replay today's board" : 'Play again'}
         </button>
       </div>
     </div>
