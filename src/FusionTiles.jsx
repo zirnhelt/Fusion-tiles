@@ -12,12 +12,17 @@ import Console from './components/Console.jsx';
 import PeriodicTable from './components/PeriodicTable.jsx';
 import Tile from './components/Tile.jsx';
 import { HelpModal, GameOverModal } from './components/Modals.jsx';
+import TitleScreen from './components/TitleScreen.jsx';
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const cellKey = (i, j) => `${i}-${j}`;
 const sym = (z) => el(z).symbol;
+// How long tiles take to fly into their fusion target / a fired neutron takes to hit
+const FUSE_FLIGHT_MS = 340;
+const NEUTRON_FLIGHT_MS = 520;
 const EMPTY_FX = { bursts: [], floaters: [], callouts: [], flashes: [] };
 const ABORTED = Symbol('aborted');
+const TITLE_EXIT_MS = 380;
 const FUSION_NAMES = { 4: 'BIG FUSION', 5: 'MEGA FUSION', 6: 'HYPER FUSION' };
 
 const newRun = (highScore, bestZ) => ({
@@ -108,7 +113,9 @@ export default function FusionTiles() {
   const [fresh, setFresh] = useState(() => new Set());
   const [toasts, setToasts] = useState([]);
   const [muted, setMuted] = useState(() => !!load(KEYS.muted, false));
-  const [showHelp, setShowHelp] = useState(() => !load(KEYS.seenHelp, false));
+  const [showHelp, setShowHelp] = useState(false);
+  // Title screen greets first-time players only; returning players go straight to the board
+  const [title, setTitle] = useState(() => (load(KEYS.seenHelp, false) ? 'gone' : 'open')); // open → leaving → gone
   const [summary, setSummary] = useState(null);
   const [restartArmed, setRestartArmed] = useState(false);
 
@@ -194,7 +201,7 @@ export default function FusionTiles() {
   useEffect(() => {
     sfx.setMuted(muted);
     noteElements(grid, { silent: true });
-    move(introCells());
+    if (title === 'gone') move(introCells());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -291,7 +298,7 @@ export default function FusionTiles() {
         fusing[cellKey(r, c)] = isTarget ? { kind: 'matched' } : { kind: 'fuse', tx: f.target[1] - c, ty: f.target[0] - r };
       }));
       setTileFx(fusing);
-      await pause(200);
+      await pause(FUSE_FLIGHT_MS);
 
       const pops = {};
       let quasi = null;
@@ -417,11 +424,11 @@ export default function FusionTiles() {
         const c = t.capture;
         const { neutron, target } = c;
         setTileFx({
-          [cellKey(...neutron)]: { kind: 'fuse', tx: target[1] - neutron[1], ty: target[0] - neutron[0] },
+          [cellKey(...neutron)]: { kind: 'fuse', tx: target[1] - neutron[1], ty: target[0] - neutron[0], ms: NEUTRON_FLIGHT_MS },
           [cellKey(...target)]: { kind: 'capturing' },
         });
         sfx.capture();
-        await pause(230);
+        await pause(NEUTRON_FLIGHT_MS + 20);
         setGrid(c.capturedGrid);
         setTileFx({ [cellKey(...target)]: { kind: 'pop' } });
         burst(target, '#67e8f9', { count: 16, spread: 16 });
@@ -590,9 +597,18 @@ export default function FusionTiles() {
     if (!next) sfx.select();
   };
 
-  const closeHelp = () => {
-    setShowHelp(false);
+  const closeHelp = () => setShowHelp(false);
+
+  // Leaving the title screen: fade it out, then rain the board in (the click also unlocks audio)
+  const startFromTitle = () => {
+    if (title !== 'open' || showHelp) return;
+    setTitle('leaving');
     save(KEYS.seenHelp, true);
+    sfx.select();
+    setTimeout(() => {
+      setTitle('gone');
+      move(introCells());
+    }, TITLE_EXIT_MS);
   };
 
   const depositRange = E.getDepositionRange(grid);
@@ -610,7 +626,7 @@ export default function FusionTiles() {
               <Atom className="h-7 w-7 shrink-0 sm:h-8 sm:w-8 text-sky-300 drop-shadow-[0_0_10px_rgba(56,189,248,0.8)] motion-safe:animate-[spin_14s_linear_infinite]" />
               <div className="min-w-0">
                 <h1 className="title-glow whitespace-nowrap text-lg font-bold leading-tight text-white sm:text-2xl">FUSION TILES</h1>
-                <div className="truncate text-[8.5px] tracking-[0.22em] text-slate-500 sm:text-[9px]">MATCH · MERGE · ADVANCE THE TABLE</div>
+                <div className="truncate text-[8.5px] tracking-[0.22em] text-slate-500 sm:text-[9px]">MATCH · FUSE · CLIMB</div>
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -756,6 +772,15 @@ export default function FusionTiles() {
         </div>
       )}
 
+      {title !== 'gone' && (
+        <TitleScreen
+          leaving={title === 'leaving'}
+          muted={muted}
+          onToggleMute={toggleMute}
+          onStart={startFromTitle}
+          onHelp={() => setShowHelp(true)}
+        />
+      )}
       {showHelp && <HelpModal onClose={closeHelp} />}
       {gameOver && summary && (
         <GameOverModal

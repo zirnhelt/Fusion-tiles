@@ -6,8 +6,8 @@ import Tile from './Tile.jsx';
 import { DailyResult } from './Leaderboard.jsx';
 
 const Section = ({ title, color, children }) => (
-  <section className="rounded-xl border border-slate-500/20 bg-slate-900/40 p-3">
-    <h3 className="mb-1 text-xs font-bold uppercase tracking-[0.16em]" style={{ color }}>{title}</h3>
+  <section className="rounded-xl border border-slate-500/20 bg-slate-900/40 p-3" style={{ borderLeft: `2px solid ${color}` }}>
+    <h3 className="mb-1 font-mono text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color }}>{title}</h3>
     <div className="space-y-1 text-[13px] leading-relaxed text-slate-300">{children}</div>
   </section>
 );
@@ -26,7 +26,7 @@ export function HelpModal({ onClose }) {
       <div className="modal p-5" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="How to play">
         <div className="mb-3 flex items-start justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-sky-300">How to play</div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-sky-300/80">How to play</div>
             <h2 className="text-xl font-bold text-white">Climb the periodic table</h2>
           </div>
           <button className="icon-btn" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button>
@@ -72,7 +72,7 @@ export function HelpModal({ onClose }) {
           <p className="px-1 text-center text-xs text-slate-400">Every element you create is saved to your periodic table. All 118 can be made. Tap one to see how.</p>
         </div>
 
-        <button className="btn btn-primary mt-4 w-full py-3 text-base" onClick={onClose}>Start fusing</button>
+        <button className="btn btn-primary mt-4 w-full py-3 text-base" onClick={onClose}>Got it</button>
       </div>
     </div>
   );
