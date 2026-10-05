@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trophy, Sparkles, RotateCcw } from 'lucide-react';
+import { X, Trophy, Sparkles, RotateCcw, AlertTriangle } from 'lucide-react';
 import { el } from '../game/elements.js';
 import { CASCADE_MOVE_BONUS, CATALYST_COST, SHUFFLE_COST, START_MOVES, FISSION_MOVE_BONUS } from '../game/engine.js';
 import Tile from './Tile.jsx';
@@ -80,7 +80,70 @@ const Stat = ({ label, value }) => (
   </div>
 );
 
-export function GameOverModal({ score, highScore, isNewBest, run, discoveredCount, onPlayAgain }) {
+export const HISTORY_LIMIT = 10;
+
+// Recent runs, newest first. `highlightAt` marks the run that just ended.
+function HistoryList({ history, limit = HISTORY_LIMIT, highlightAt }) {
+  const best = history.reduce((m, h) => Math.max(m, h.score), 0);
+  const fmt = (at) => {
+    try { return new Date(at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); } catch { return ''; }
+  };
+  return (
+    <ul className="space-y-1">
+      {history.slice(0, limit).map(h => (
+        <li
+          key={h.at}
+          className={`flex items-center gap-2 rounded-lg px-2 py-1 text-xs ${h.at === highlightAt ? 'bg-sky-400/10 ring-1 ring-sky-300/40' : 'bg-slate-900/40'}`}
+        >
+          <span className="w-12 shrink-0 text-left text-slate-500">{fmt(h.at)}</span>
+          <span className="stat-value min-w-0 flex-1 text-left font-bold text-white">
+            {h.score.toLocaleString()}{h.score === best && h.score > 0 && <Trophy className="ml-1 inline h-3 w-3 text-amber-300" />}
+          </span>
+          <span className="font-mono text-slate-400">{el(h.maxZ).symbol}</span>
+          <span className="w-10 shrink-0 text-right font-mono text-slate-400">×{h.bestChain}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export const StorageWarning = ({ onEnable, busy }) => (
+  <div className="flex items-start gap-2 rounded-xl border border-amber-300/40 bg-amber-300/10 p-3 text-left text-xs text-amber-100">
+    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+    <div className="min-w-0 flex-1">
+      <div className="font-semibold">Your browser is blocking saving here</div>
+      <div className="mt-0.5 text-amber-100/80">Scores may be lost when you close or reload this tab.</div>
+      {onEnable && (
+        <button className="btn mt-2 h-8 px-3 text-xs" onClick={onEnable} disabled={busy}>
+          {busy ? 'Asking…' : 'Enable saving'}
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+export function HistoryModal({ history, highScore, onClose }) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal p-5" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Recent runs">
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.24em] text-sky-300/80">Recent runs</div>
+            <h2 className="text-xl font-bold text-white">Best: {highScore.toLocaleString()}</h2>
+          </div>
+          <button className="icon-btn" onClick={onClose} aria-label="Close"><X className="h-4 w-4" /></button>
+        </div>
+        {history.length === 0
+          ? <p className="py-6 text-center text-sm text-slate-400">No finished runs yet. Play until the reactor shuts down.</p>
+          : <HistoryList history={history} />}
+        <div className="mt-2 text-right text-[10px] uppercase tracking-[0.14em] text-slate-500">date · score · heaviest · best chain</div>
+        <button className="btn btn-primary mt-4 w-full py-3 text-base" onClick={onClose}>Close</button>
+      </div>
+    </div>
+  );
+}
+
+export function GameOverModal({ score, highScore, isNewBest, run, discoveredCount, history, runAt, storageLimited, onEnableStorage, enablingStorage, onPlayAgain }) {
   const heaviest = el(run.maxZ);
   return (
     <div className="overlay">
@@ -127,6 +190,15 @@ export function GameOverModal({ score, highScore, isNewBest, run, discoveredCoun
           )}
           <div className="mt-2 font-mono text-xs text-slate-400">Periodic table: {discoveredCount} / 118</div>
         </div>
+
+        {history.length > 1 && (
+          <div className="mb-5 rounded-xl border border-slate-500/20 bg-slate-900/40 p-3">
+            <div className="mb-2 text-xs uppercase tracking-[0.16em] text-slate-300">Recent runs</div>
+            <HistoryList history={history} limit={5} highlightAt={runAt} />
+          </div>
+        )}
+
+        {storageLimited && <div className="mb-4"><StorageWarning onEnable={onEnableStorage} busy={enablingStorage} /></div>}
 
         <button className="btn btn-primary w-full py-3 text-base" onClick={onPlayAgain}>
           <RotateCcw className="h-4 w-4" /> Play again
