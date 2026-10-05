@@ -626,6 +626,35 @@ body {
 .pcell.fresh { animation: fresh 1.4s ease-out 2; }
 .pcell.picked { outline: 2px solid #fff; outline-offset: 1px; z-index: 1; }
 .pcell:hover { transform: scale(1.25); z-index: 2; }
+.pcell.dim { opacity: 0.18; }
+
+/* Set tracker: one chip per category, lit when the whole set is made this run */
+.set-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(148, 163, 184, 0.05);
+  font-size: 10px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.set-chip:hover { border-color: var(--cat); }
+.set-chip.active { border-color: var(--cat); color: #e2e8f0; background: color-mix(in srgb, var(--cat) 14%, transparent); }
+.set-chip.done { border-color: var(--cat); color: #fff; background: color-mix(in srgb, var(--cat) 30%, transparent); box-shadow: 0 0 10px -3px var(--cat); }
+.set-member {
+  min-width: 30px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  border: 1px dashed rgba(148, 163, 184, 0.35);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #64748b;
+}
+.set-member.made { border-style: solid; border-color: rgba(148, 163, 184, 0.6); background: rgba(148, 163, 184, 0.14); color: #fff; }
 @keyframes fresh { 0% { box-shadow: 0 0 0 0 #fff; } 50% { box-shadow: 0 0 14px 3px #fff; } 100% { box-shadow: 0 0 8px -1px var(--cat); } }
 
 /* ── Overlays ─────────────────────────────────────────────────────────────── */
@@ -677,6 +706,11 @@ body {
   border-color: rgba(56, 189, 248, 0.5);
   box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.9), 0 0 30px -8px rgba(56, 189, 248, 0.5);
   animation-duration: 4300ms;
+}
+.toast-set {
+  border-color: var(--set);
+  box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.9), 0 0 36px -6px var(--set);
+  animation-duration: 3900ms;
 }
 @keyframes toast {
   0% { transform: translateY(-140%); opacity: 0; }

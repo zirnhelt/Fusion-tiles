@@ -3,7 +3,7 @@
 // The UI plays back the "steps" these functions return as animations, and
 // scripts/simulate.mjs runs the exact same rules headlessly for balancing.
 
-import { ELEMENTS } from './elements.js';
+import { ELEMENTS, CATEGORIES } from './elements.js';
 
 export const GRID_SIZE = 6;
 export const START_MOVES = 40;
@@ -11,9 +11,10 @@ export const FISSION_THRESHOLD = 83;        // Bi (Z=83) and heavier split when 
 export const DECAY_THRESHOLD = 83;          // Z≥83: alpha-decays if left unmatched
 export const SPONT_FISSION_THRESHOLD = 100; // Z≥100: may split on its own each turn
 export const FISSION_MOVE_BONUS = 4;
-export const SHUFFLE_COST = 3;
-export const CATALYST_COST = 3;
-export const CASCADE_MOVE_BONUS = 3;
+// Tools get pricier the more they do for you
+export const HINT_COST = 1;
+export const SHUFFLE_COST = 5;
+export const CATALYST_COST = 8;
 export const MAX_CASCADES = 20;
 // Heaviest total weight that fuses into something; beyond this the compound
 // nucleus can't hold together and splits instead (quasi-fission)
@@ -200,6 +201,46 @@ const cleanupObsoleteElements = (grid) => {
   return { removed, cells };
 };
 
+// ── Rewards ──────────────────────────────────────────────────────────────────
+// Everything here grows faster than linearly, so one big reaction beats
+// several small ones.
+
+// Tiles past the minimum match (3, or 2 for forged): the move refund doubles
+// with each one and the points multiplier climbs (×1, ×2, ×3, ×4).
+const SIZE_MOVES = [1, 2, 4, 8];
+export const extraTiles = (count, z, range) => Math.min(SIZE_MOVES.length - 1, Math.max(0, count - matchLength(z, range)));
+export const sizeMoveBonus = (extra) => SIZE_MOVES[extra];
+export const sizeMultiplier = (extra) => 1 + extra;
+
+// Chain reaction step k (k ≥ 2) refunds 3·(k−1) moves: a chain of 2 earns 3,
+// of 3 earns 9, of 4 earns 18. Its points are multiplied by k.
+export const CASCADE_MOVE_BONUS = 3;
+export const chainMoveBonus = (combo) => CASCADE_MOVE_BONUS * Math.max(0, combo - 1);
+
+// Several separate fusions landing at once: m of them refund m(m−1)/2 extra
+// moves (2 → +1, 3 → +3, 4 → +6) and multiply that step's points by m.
+export const multiMoveBonus = (count) => (count * (count - 1)) / 2;
+
+// ── Element sets ─────────────────────────────────────────────────────────────
+// Making every element of one category in a single run (all the noble gases,
+// all the halogens…). Bigger and heavier sets pay more.
+export const SET_MOVES_PER_MEMBER = 2;
+export const SET_MAX_MOVES = 30;
+export const SET_POINTS_PER_Z = 100;
+
+export const ELEMENT_SETS = Object.entries(CATEGORIES).map(([key, { plural, color }]) => {
+  const members = ELEMENTS.filter(e => e.category === key).map(e => e.number);
+  return {
+    key, label: plural, color, members,
+    moves: Math.min(SET_MAX_MOVES, members.length * SET_MOVES_PER_MEMBER),
+    points: members.reduce((sum, z) => sum + z, 0) * SET_POINTS_PER_Z,
+  };
+});
+
+// Sets every member of which is in `seen`, skipping keys already in `claimed`
+export const completedSets = (seen, claimed = new Set()) =>
+  ELEMENT_SETS.filter(s => !claimed.has(s.key) && s.members.every(z => seen.has(z)));
+
 // ── Cascades ─────────────────────────────────────────────────────────────────
 
 // Resolve every match on the board, including chain reactions.
@@ -216,7 +257,7 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
   while (matchesFound.length > 0 && combo < MAX_CASCADES) {
     combo++;
     const fusions = [];
-    let stepScore = 0;
+    const range = getDepositionRange(grid); // the range findMatches judged these matches by
     let stepBonus = 0;
 
     for (const match of matchesFound) {
@@ -224,19 +265,16 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
       // Overlapping cross/T-shaped matches: skip a group whose tiles were already consumed
       if (!z || !match.every(([r, c]) => grid[r][c] === z)) continue;
       const result = fuse(z, match.length, rng);
-
-      stepBonus += 1;                          // every match refunds its move
-      if (match.length >= 4) stepBonus += 1;   // 4-match = +2
-      if (match.length >= 5) stepBonus += 2;   // 5-match = +4
-      if (match.length >= 6) stepBonus += 2;   // 6+ match = +6
+      const extra = extraTiles(match.length, z, range);
+      stepBonus += sizeMoveBonus(extra);
 
       match.forEach(([r, c]) => { grid[r][c] = null; });
       const target = combo === 1 && targetPos && match.some(([r, c]) => r === targetPos.row && c === targetPos.col)
         ? [targetPos.row, targetPos.col]
         : match[match.length - 1];
 
-      const points = z * match.length * 10;
-      stepScore += points;
+      // Step multipliers (chain, simultaneous fusions) are applied once the step is done
+      const points = z * match.length * 10 * sizeMultiplier(extra);
       if (result.split) {
         // Too heavy to hold together: one daughter at the target, one beside it
         const [d1, d2] = result.split;
@@ -245,14 +283,19 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
           .sort((a, b) => (Math.abs(a[0] - target[0]) + Math.abs(a[1] - target[1])) - (Math.abs(b[0] - target[0]) + Math.abs(b[1] - target[1])))[0];
         grid[target[0]][target[1]] = d1;
         grid[cell[0]][cell[1]] = d2;
-        fusions.push({ cells: match, from: z, to: d1, split: { d1, d2, cell }, target, points });
+        fusions.push({ cells: match, from: z, to: d1, split: { d1, d2, cell }, target, points, extra });
       } else {
         grid[target[0]][target[1]] = result.to;
-        fusions.push({ cells: match, from: z, to: result.to, target, points });
+        fusions.push({ cells: match, from: z, to: result.to, target, points, extra });
       }
     }
 
-    if (combo >= 2) stepBonus += CASCADE_MOVE_BONUS;
+    const multiplier = combo * fusions.length;
+    fusions.forEach(f => { f.points *= multiplier; });
+    const stepScore = fusions.reduce((sum, f) => sum + f.points, 0);
+    const chainMoves = chainMoveBonus(combo);
+    const multiMoves = multiMoveBonus(fusions.length);
+    stepBonus += chainMoves + multiMoves;
 
     const mergedGrid = cloneGrid(grid);
     const fall = emptyNumberGrid();
@@ -274,7 +317,7 @@ export const resolveCascade = (startGrid, targetPos = null, rng = Math.random) =
     steps.push({
       combo, fusions, mergedGrid, settledGrid, fall,
       retired: removed, retiredCells, finalGrid: cloneGrid(grid), retireFall,
-      score: stepScore, bonusMoves: stepBonus,
+      score: stepScore, bonusMoves: stepBonus, multiplier, chainMoves, multiMoves,
     });
     totalScore += stepScore;
     totalBonus += stepBonus;
