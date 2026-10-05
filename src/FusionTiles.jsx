@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Atom, HelpCircle, Lightbulb, RotateCcw, Shuffle, FlaskConical, Volume2, VolumeX } from 'lucide-react';
+import { Atom, History, HelpCircle, Lightbulb, RotateCcw, Shuffle, FlaskConical, Volume2, VolumeX } from 'lucide-react';
 import { el } from './game/elements.js';
 import * as E from './game/engine.js';
 import { sfx } from './game/sfx.js';
-import { KEYS, load, save } from './game/storage.js';
+import { KEYS, load, save, storageMode, requestPersistentStorage } from './game/storage.js';
 import Board, { makeBurst, makeFloater, makeCallout, makeFlash } from './components/Board.jsx';
 import Hud from './components/Hud.jsx';
 import Console from './components/Console.jsx';
 import PeriodicTable from './components/PeriodicTable.jsx';
 import Tile from './components/Tile.jsx';
-import { HelpModal, GameOverModal } from './components/Modals.jsx';
+import { HelpModal, GameOverModal, HistoryModal, StorageWarning, HISTORY_LIMIT } from './components/Modals.jsx';
 import TitleScreen from './components/TitleScreen.jsx';
 
 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -22,6 +22,14 @@ const EMPTY_FX = { bursts: [], floaters: [], callouts: [], flashes: [] };
 const ABORTED = Symbol('aborted');
 const TITLE_EXIT_MS = 380;
 const FUSION_NAMES = { 4: 'BIG FUSION', 5: 'MEGA FUSION', 6: 'HYPER FUSION' };
+
+// Saved history is untrusted: keep only well-formed entries
+const loadHistory = () => {
+  const raw = load(KEYS.history, []);
+  return Array.isArray(raw)
+    ? raw.filter(h => h && Number.isFinite(h.score) && Number.isFinite(h.at) && Number.isFinite(h.maxZ)).slice(0, HISTORY_LIMIT)
+    : [];
+};
 
 const newRun = (highScore, bestZ) => ({
   fusions: 0, fissions: 0, captures: 0, quasi: 0, bestChain: 0, maxZ: 1, seen: new Set(), newDiscoveries: [],
@@ -96,6 +104,10 @@ export default function FusionTiles() {
   const [title, setTitle] = useState(() => (load(KEYS.seenHelp, false) ? 'gone' : 'open')); // open → leaving → gone
   const [summary, setSummary] = useState(null);
   const [restartArmed, setRestartArmed] = useState(false);
+  const [history, setHistory] = useState(loadHistory);
+  const [showHistory, setShowHistory] = useState(false);
+  const [mode, setMode] = useState(storageMode);
+  const [enablingStorage, setEnablingStorage] = useState(false);
 
   const gameToken = useRef(0);
   const motionKey = useRef(0);
@@ -106,6 +118,7 @@ export default function FusionTiles() {
   const restartTimer = useRef(null);
   const turnsTaken = useRef(0);
   const tipsSeen = useRef(load(KEYS.tips, {}));
+  const historyRef = useRef(history);
 
   // ── small helpers ──────────────────────────────────────────────────────────
   const pushLog = (text, tone = 'normal') => setLog(prev => [...prev.slice(-19), { id: ++logId, text, tone }]);
@@ -236,7 +249,16 @@ export default function FusionTiles() {
     sfx.gameOver();
     pushLog('REACTOR SHUTDOWN · OUT OF MOVES', 'warn');
     save(KEYS.gamesPlayed, (Number(load(KEYS.gamesPlayed, 0)) || 0) + 1);
+    const at = Date.now();
+    const nextHistory = [
+      { at, score: finalScore, maxZ: run.maxZ, fusions: run.fusions, bestChain: Math.max(1, run.bestChain) },
+      ...historyRef.current,
+    ].slice(0, HISTORY_LIMIT);
+    historyRef.current = nextHistory;
+    setHistory(nextHistory);
+    save(KEYS.history, nextHistory);
     setSummary({
+      runAt: at,
       isNewBest: finalScore > run.startHighScore && finalScore > 0,
       run: {
         maxZ: run.maxZ, fusions: run.fusions, nuclear: run.fissions + run.captures + run.quasi, bestChain: Math.max(1, run.bestChain),
@@ -604,6 +626,32 @@ export default function FusionTiles() {
 
   const closeHelp = () => setShowHelp(false);
 
+  // Ask the browser for real storage (needs a click), then merge whatever it already holds
+  const enableStorage = async () => {
+    setEnablingStorage(true);
+    const next = await requestPersistentStorage();
+    setEnablingStorage(false);
+    setMode(next);
+    if (next !== 'local') return;
+    const savedBest = Number(load(KEYS.highScore, 0)) || 0;
+    const hs = Math.max(highScore, savedBest);
+    setHighScore(hs);
+    save(KEYS.highScore, hs);
+    const bz = Math.max(bestZRef.current, Number(load(KEYS.bestZ, 1)) || 1);
+    bestZRef.current = bz;
+    setBestZ(bz);
+    save(KEYS.bestZ, bz);
+    const disc = new Set([...load(KEYS.discovered, []), ...discoveredRef.current]);
+    discoveredRef.current = disc;
+    setDiscovered(disc);
+    save(KEYS.discovered, [...disc]);
+    const byAt = new Map([...loadHistory(), ...historyRef.current].map(h => [h.at, h]));
+    const merged = [...byAt.values()].sort((a, b) => b.at - a.at).slice(0, HISTORY_LIMIT);
+    historyRef.current = merged;
+    setHistory(merged);
+    save(KEYS.history, merged);
+  };
+
   // Leaving the title screen: fade it out, then rain the board in (the click also unlocks audio)
   const startFromTitle = () => {
     if (title !== 'open' || showHelp) return;
@@ -636,6 +684,9 @@ export default function FusionTiles() {
           <div className="flex shrink-0 items-center gap-2">
             <button className="icon-btn" onClick={toggleMute} aria-label={muted ? 'Unmute sound' : 'Mute sound'} title={muted ? 'Sound off' : 'Sound on'}>
               {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+            <button className="icon-btn" onClick={() => setShowHistory(true)} aria-label="Recent runs" title="Recent runs">
+              <History className="h-4 w-4" />
             </button>
             <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="How to play" title="How to play">
               <HelpCircle className="h-4 w-4" />
@@ -710,7 +761,13 @@ export default function FusionTiles() {
         </div>
 
         <footer className="area-footer pb-2 text-center text-[11px] text-slate-600">
-          All 118 elements · weights rounded to whole units · progress is saved on this device
+          {mode === 'local'
+            ? 'All 118 elements · weights rounded to whole units · progress is saved on this device'
+            : (
+              <div className="mx-auto max-w-sm text-left">
+                <StorageWarning onEnable={enableStorage} busy={enablingStorage} />
+              </div>
+            )}
         </footer>
       </main>
 
@@ -751,6 +808,7 @@ export default function FusionTiles() {
         />
       )}
       {showHelp && <HelpModal onClose={closeHelp} />}
+      {showHistory && <HistoryModal history={history} highScore={highScore} onClose={() => setShowHistory(false)} />}
       {gameOver && summary && (
         <GameOverModal
           score={score}
@@ -758,6 +816,11 @@ export default function FusionTiles() {
           isNewBest={summary.isNewBest}
           run={summary.run}
           discoveredCount={discovered.size}
+          history={history}
+          runAt={summary.runAt}
+          storageLimited={mode !== 'local'}
+          onEnableStorage={enableStorage}
+          enablingStorage={enablingStorage}
           onPlayAgain={newGame}
         />
       )}
