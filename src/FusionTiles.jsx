@@ -21,7 +21,10 @@ const NEUTRON_FLIGHT_MS = 520;
 const EMPTY_FX = { bursts: [], floaters: [], callouts: [], flashes: [] };
 const ABORTED = Symbol('aborted');
 const TITLE_EXIT_MS = 380;
-const FUSION_NAMES = { 4: 'BIG FUSION', 5: 'MEGA FUSION', 6: 'HYPER FUSION' };
+// Keyed by tiles past the minimum match / by fusions landing at once
+const FUSION_NAMES = { 1: 'BIG FUSION', 2: 'MEGA FUSION', 3: 'HYPER FUSION' };
+const MULTI_NAMES = { 2: 'DOUBLE', 3: 'TRIPLE', 4: 'QUADRUPLE' };
+const SET_TOAST_MS = 3800;
 
 // Saved history is untrusted: keep only well-formed entries
 const loadHistory = () => {
@@ -32,7 +35,7 @@ const loadHistory = () => {
 };
 
 const newRun = (highScore, bestZ) => ({
-  fusions: 0, fissions: 0, captures: 0, quasi: 0, bestChain: 0, maxZ: 1, seen: new Set(), newDiscoveries: [],
+  fusions: 0, fissions: 0, captures: 0, quasi: 0, bestChain: 0, maxZ: 1, seen: new Set(), sets: new Set(), newDiscoveries: [],
   startHighScore: highScore, startBestZ: bestZ,
 });
 
@@ -114,7 +117,6 @@ export default function FusionTiles() {
   const discoveredRef = useRef(discovered);
   const bestZRef = useRef(bestZ);
   const runRef = useRef(newRun(highScore, bestZ));
-  const hintTimer = useRef(null);
   const restartTimer = useRef(null);
   const turnsTaken = useRef(0);
   const tipsSeen = useRef(load(KEYS.tips, {}));
@@ -204,7 +206,8 @@ export default function FusionTiles() {
 
   useEffect(() => {
     if (toasts.length === 0) return undefined;
-    const t = setTimeout(() => setToasts(prev => prev.slice(1)), toasts[0].kind === 'tip' ? 4200 : 2500);
+    const ms = { tip: 4200, set: SET_TOAST_MS }[toasts[0].kind] ?? 2500;
+    const t = setTimeout(() => setToasts(prev => prev.slice(1)), ms);
     return () => clearTimeout(t);
   }, [toasts[0]?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -263,6 +266,7 @@ export default function FusionTiles() {
       run: {
         maxZ: run.maxZ, fusions: run.fusions, nuclear: run.fissions + run.captures + run.quasi, bestChain: Math.max(1, run.bestChain),
         seen: run.seen.size, newDiscoveries: run.newDiscoveries, newBestZ: run.maxZ > run.startBestZ,
+        sets: E.ELEMENT_SETS.filter(set => run.sets.has(set.key)),
       },
     });
   };
@@ -274,6 +278,7 @@ export default function FusionTiles() {
       step.fusions.forEach(f => f.cells.forEach(([r, c]) => { matched[cellKey(r, c)] = { kind: 'matched' }; }));
       setTileFx(matched);
       const biggest = Math.max(...step.fusions.map(f => f.cells.length));
+      const mostExtra = Math.max(...step.fusions.map(f => f.extra));
       sfx.match(step.combo, biggest);
       await pause(170);
 
@@ -313,10 +318,17 @@ export default function FusionTiles() {
         callout('QUASI-FISSION', `too heavy → ${sym(quasi.split.d1)} + ${sym(quasi.split.d2)}`, '#fb923c');
       } else {
         sfx.fuse(Math.max(...step.fusions.map(f => f.to)));
-        if (step.combo >= 2) callout(`CHAIN ×${step.combo}`, `+${E.CASCADE_MOVE_BONUS} moves`, '#a78bfa');
-        else if (biggest >= 4) callout(FUSION_NAMES[Math.min(6, biggest)], `+${biggest >= 6 ? 6 : biggest === 5 ? 4 : 2} moves`, '#22d3ee');
+        // The step's biggest points multiplier and everything it refunds
+        const topMult = step.multiplier * E.sizeMultiplier(mostExtra);
+        const movesText = `+${step.bonusMoves} move${step.bonusMoves === 1 ? '' : 's'}`;
+        const sub = `×${topMult} points · ${movesText}`;
+        const multi = MULTI_NAMES[Math.min(4, step.fusions.length)];
+        if (step.combo >= 2) callout(`CHAIN ×${step.combo}${multi ? ` · ${multi}` : ''}`, sub, '#a78bfa');
+        else if (multi) callout(`${multi} FUSION`, sub, '#f472b6');
+        else if (mostExtra > 0) callout(FUSION_NAMES[mostExtra], sub, '#22d3ee');
+        if (topMult > 1) pushLog(`✦ ×${topMult} POINTS · ${movesText.toUpperCase()}`, 'discovery');
       }
-      if (step.combo >= 3 || biggest >= 5) setShakeKey(k => k + 1);
+      if (step.combo >= 3 || biggest >= 5 || step.multiplier >= 4) setShakeKey(k => k + 1);
       runRef.current.fusions += step.fusions.length;
       runRef.current.bestChain = Math.max(runRef.current.bestChain, step.combo);
       noteElements(step.mergedGrid);
@@ -526,6 +538,21 @@ export default function FusionTiles() {
         }
       }
 
+      // Whole categories made this run pay out once each
+      noteElements(g);
+      for (const set of E.completedSets(runRef.current.seen, runRef.current.sets)) {
+        runRef.current.sets.add(set.key);
+        callout(set.label.toUpperCase(), `SET COMPLETE · +${set.moves} moves`, set.color);
+        pushLog(`◆ SET COMPLETE: ${set.label.toUpperCase()} · +${set.moves} MOVES · +${set.points.toLocaleString()}`, 'discovery');
+        setToasts(prev => [...prev, { id: ++toastId, kind: 'set', set }]);
+        setShakeKey(k => k + 1);
+        sfx.discover();
+        addScore(set.points);
+        gained += set.points;
+        bonus += set.moves;
+        await pause(1150);
+      }
+
       // Commit
       setGrid(g);
       setAges(a);
@@ -541,7 +568,6 @@ export default function FusionTiles() {
         showDelta(bonus);
         sfx.bonus();
       }
-      noteElements(g);
       if (finalMoves <= 0) endGame(newScore);
     } catch (err) {
       if (err !== ABORTED) throw err;
@@ -551,7 +577,7 @@ export default function FusionTiles() {
   };
 
   const doShuffle = async () => {
-    if (busy || gameOver || moves < E.SHUFFLE_COST) return;
+    if (busy || gameOver || moves <= E.SHUFFLE_COST) return;
     const token = gameToken.current;
     setBusy(true);
     setHint(null);
@@ -585,7 +611,6 @@ export default function FusionTiles() {
       runTurn({ type: 'catalyst', cell: [i, j] });
       return;
     }
-    setHint(null);
     if (!selected || !(Math.abs(i - selected.row) + Math.abs(j - selected.col) === 1)) {
       const same = selected && selected.row === i && selected.col === j;
       setSelected(same ? null : { row: i, col: j });
@@ -600,17 +625,21 @@ export default function FusionTiles() {
     runTurn({ type: 'swap', from, to });
   };
 
+  // A paid hint stays lit until the board changes
   const showHint = () => {
-    if (busy || gameOver) return;
+    if (busy || gameOver || hint || moves <= E.HINT_COST) return;
     const h = E.findHintMove(grid);
     if (!h) return;
+    turnsTaken.current += 1;
     setHint(h);
-    clearTimeout(hintTimer.current);
-    hintTimer.current = setTimeout(() => setHint(null), 3000);
+    setMoves(moves - E.HINT_COST);
+    showDelta(-E.HINT_COST);
+    sfx.select();
+    pushLog(`💡 HINT · −${E.HINT_COST} MOVE${E.HINT_COST === 1 ? '' : 'S'}`);
   };
 
   const toggleCatalyst = () => {
-    if (busy || gameOver || moves < E.CATALYST_COST) return;
+    if (busy || gameOver || moves <= E.CATALYST_COST) return;
     setCatalystMode(m => !m);
     setCatalystHover(null);
     setSelected(null);
@@ -731,16 +760,16 @@ export default function FusionTiles() {
           </div>
 
           <div className="area-tools grid grid-cols-3 gap-2">
-            <button className="btn" onClick={showHint} disabled={busy || gameOver}>
-              <Lightbulb className="h-4 w-4 text-amber-300" /> Hint <span className="cost cost-free">free</span>
+            <button className="btn" onClick={showHint} disabled={busy || gameOver || !!hint || moves <= E.HINT_COST}>
+              <Lightbulb className="h-4 w-4 text-amber-300" /> Hint <span className="cost">−{E.HINT_COST}</span>
             </button>
-            <button className="btn" onClick={doShuffle} disabled={busy || gameOver || moves < E.SHUFFLE_COST}>
+            <button className="btn" onClick={doShuffle} disabled={busy || gameOver || moves <= E.SHUFFLE_COST}>
               <Shuffle className="h-4 w-4 text-sky-300" /> Shuffle <span className="cost">−{E.SHUFFLE_COST}</span>
             </button>
             <button
               className={`btn ${catalystMode ? 'btn-active' : ''}`}
               onClick={toggleCatalyst}
-              disabled={busy || gameOver || moves < E.CATALYST_COST}
+              disabled={busy || gameOver || moves <= E.CATALYST_COST}
               aria-pressed={catalystMode}
             >
               <FlaskConical className="h-4 w-4 text-green-300" /> Catalyst <span className="cost">−{E.CATALYST_COST}</span>
@@ -781,7 +810,19 @@ export default function FusionTiles() {
           </div>
         </div>
       )}
-      {toast && toast.kind !== 'tip' && (
+      {toast?.kind === 'set' && (
+        <div key={toast.id} className="toast toast-set" role="status" style={{ '--set': toast.set.color }}>
+          <div className="flex -space-x-3">
+            {toast.set.members.slice(0, 7).map(z => <Tile key={z} z={z} size={36} showWeight={false} />)}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: toast.set.color }}>Set complete</div>
+            <div className="truncate text-sm font-bold text-white">{toast.set.label}</div>
+            <div className="font-mono text-[11px] text-slate-300">+{toast.set.moves} moves · +{toast.set.points.toLocaleString()}</div>
+          </div>
+        </div>
+      )}
+      {toast?.elements && (
         <div key={toast.id} className="toast" role="status">
           <div className="flex -space-x-2">
             {toast.elements.slice(0, 4).map(z => <Tile key={z} z={z} size={44} showWeight={false} />)}

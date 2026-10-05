@@ -36,11 +36,15 @@ HOW IT WORKS
 
 Click a tile → click an adjacent tile → swap → match 3+ → fuse.
 
-Longer matches earn bonus moves:
+Bigger reactions pay off faster than they grow:
   4-match  → +2 moves
   5-match  → +4 moves
-  6+ match → +6 moves
-  Cascade  → +3 moves per chain reaction
+  6+ match → +8 moves
+  Cascade  → +3, +6, +9… moves per chain step, and points ×2, ×3, ×4…
+  Two or three fusions landing at once multiply the points again
+
+Make every element of one category in a single run (all the noble
+gases, all the halogens…) to complete a set for a big bonus.
 
 Set up cascades and watch the board clear itself. Those are the moments.
 
@@ -56,9 +60,9 @@ Every one of the 118 elements can be made. Oganesson takes a plan.
 
 WHEN YOU'RE STUCK
 
-💡 Hint     — highlights a good swap (free)
-🔀 Shuffle  — rearranges the board (3 moves)
-⚗ Catalyst — turns a tile's neighbours into copies of it (3 moves)
+💡 Hint     — highlights a good swap (1 move)
+🔀 Shuffle  — rearranges the board (5 moves)
+⚗ Catalyst — turns a tile's neighbours into copies of it (8 moves)
 
 ────────────────────────────────────────
 

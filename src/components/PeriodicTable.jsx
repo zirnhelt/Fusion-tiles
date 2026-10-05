@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { ELEMENTS, CATEGORIES, el } from '../game/elements.js';
+import { Check } from 'lucide-react';
+import { ELEMENTS, el } from '../game/elements.js';
+import { ELEMENT_SETS } from '../game/engine.js';
 import { routesFor, fusesInto } from '../game/recipes.js';
 import Tile from './Tile.jsx';
 
@@ -32,7 +34,7 @@ function ElementInfo({ z, found, onPick }) {
         </div>
         <div className="mb-1 flex items-center gap-1.5 text-[11px]" style={{ color: e.categoryColor }}>
           <span className="inline-block h-2 w-2 rounded-full" style={{ background: e.categoryColor }} />
-          {CATEGORIES[e.category].label}{!found && <span className="text-slate-500"> · undiscovered</span>}
+          {e.categoryLabel}{!found && <span className="text-slate-500"> · undiscovered</span>}
         </div>
         {routes.fusion.length > 0 && (
           <div className="flex flex-wrap items-center gap-1">
@@ -65,8 +67,36 @@ function ElementInfo({ z, found, onPick }) {
   );
 }
 
+// One category's progress this run: which members are made, which are still missing
+function SetInfo({ set, runSeen, onPick }) {
+  const made = set.members.filter(z => runSeen.has(z)).length;
+  return (
+    <div className="mt-3 rounded-xl border border-slate-500/20 bg-slate-900/50 p-3 text-xs text-slate-300">
+      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
+        <span className="text-sm font-semibold" style={{ color: set.color }}>{set.label}</span>
+        <span className="font-mono text-slate-400">{made}/{set.members.length} this run · complete for +{set.moves} moves, +{set.points.toLocaleString()}</span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {set.members.map(z => (
+          <button
+            type="button"
+            key={z}
+            onClick={() => onPick(z)}
+            className={`set-member ${runSeen.has(z) ? 'made' : ''}`}
+            title={`${el(z).name}${runSeen.has(z) ? ' · made this run' : ' · not made yet this run'}`}
+          >
+            {el(z).symbol}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function PeriodicTable({ discovered, runSeen, fresh, depositRange }) {
   const [picked, setPicked] = useState(null);
+  const [focus, setFocus] = useState(null); // set key whose members are spotlit
+  const focusSet = ELEMENT_SETS.find(s => s.key === focus);
   return (
     <div className="panel p-4">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
@@ -84,8 +114,10 @@ export default function PeriodicTable({ discovered, runSeen, fresh, depositRange
       <div className="ptable" role="list">
         {ELEMENTS.map(e => {
           const found = discovered.has(e.number);
-          const cls = ['pcell', found && 'found', runSeen.has(e.number) && 'run', fresh.has(e.number) && 'fresh', picked === e.number && 'picked']
-            .filter(Boolean).join(' ');
+          const cls = [
+            'pcell', found && 'found', runSeen.has(e.number) && 'run', fresh.has(e.number) && 'fresh', picked === e.number && 'picked',
+            focus && e.category !== focus && 'dim',
+          ].filter(Boolean).join(' ');
           return (
             <button
               type="button"
@@ -109,16 +141,32 @@ export default function PeriodicTable({ discovered, runSeen, fresh, depositRange
 
       {picked ? (
         <ElementInfo z={picked} found={discovered.has(picked)} onPick={setPicked} />
+      ) : focusSet ? (
+        <SetInfo set={focusSet} runSeen={runSeen} onPick={setPicked} />
       ) : (
-        <p className="mt-3 text-center text-xs text-slate-500">Tap any element to see how to make it.</p>
+        <p className="mt-3 text-center text-xs text-slate-500">Tap any element to see how to make it. Make a whole category in one run to complete a set.</p>
       )}
 
-      <div className="mt-3 flex flex-wrap justify-center gap-x-3 gap-y-1">
-        {Object.entries(CATEGORIES).map(([key, c]) => (
-          <span key={key} className="flex items-center gap-1 text-[10px] text-slate-400">
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: c.color }} />{c.label}
-          </span>
-        ))}
+      <div className="mt-3 flex flex-wrap justify-center gap-1" role="list" aria-label="Element sets this run">
+        {ELEMENT_SETS.map(set => {
+          const made = set.members.filter(z => runSeen.has(z)).length;
+          const done = made === set.members.length;
+          return (
+            <button
+              type="button"
+              key={set.key}
+              className={`set-chip ${done ? 'done' : ''} ${focus === set.key ? 'active' : ''}`}
+              style={{ '--cat': set.color }}
+              aria-pressed={focus === set.key}
+              title={`${set.label}: ${made} of ${set.members.length} made this run`}
+              onClick={() => { setFocus(f => (f === set.key ? null : set.key)); setPicked(null); }}
+            >
+              {done ? <Check className="h-2.5 w-2.5" /> : <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: set.color }} />}
+              {set.label}
+              <span className="font-mono opacity-70">{made}/{set.members.length}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

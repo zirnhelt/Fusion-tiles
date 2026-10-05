@@ -1,7 +1,10 @@
 import React from 'react';
 import { X, Trophy, Sparkles, RotateCcw, AlertTriangle } from 'lucide-react';
 import { el } from '../game/elements.js';
-import { CASCADE_MOVE_BONUS, CATALYST_COST, SHUFFLE_COST, START_MOVES, FISSION_MOVE_BONUS } from '../game/engine.js';
+import {
+  CASCADE_MOVE_BONUS, CATALYST_COST, HINT_COST, SHUFFLE_COST, START_MOVES, FISSION_MOVE_BONUS,
+  SET_MOVES_PER_MEMBER, SET_MAX_MOVES,
+} from '../game/engine.js';
 import Tile from './Tile.jsx';
 
 const Section = ({ title, color, children }) => (
@@ -44,12 +47,23 @@ export function HelpModal({ onClose }) {
           </Section>
 
           <Section title="Moves" color="#86efac">
-            <p>You start with {START_MOVES}. Every swap costs 1 — even ones that don't match. Matches earn moves back:</p>
-            <p className="font-mono text-xs text-slate-200">3-match +1 · 4-match +2 · 5-match +4 · 6+ +6 · each chain reaction +{CASCADE_MOVE_BONUS}</p>
+            <p>You start with {START_MOVES}. Every swap costs 1 — even ones that don't match. Matches earn moves back, and bigger reactions earn much more:</p>
+            <p className="font-mono text-xs text-slate-200">3-match +1 · 4-match +2 · 5-match +4 · 6+ +8 (forged tiles count from a pair)</p>
+            <p className="font-mono text-xs text-slate-200">Chain reaction: 2nd step +{CASCADE_MOVE_BONUS} · 3rd +{CASCADE_MOVE_BONUS * 2} · 4th +{CASCADE_MOVE_BONUS * 3}…</p>
+            <p className="font-mono text-xs text-slate-200">Fusions landing at once: 2 → +1 extra · 3 → +3 extra</p>
+          </Section>
+
+          <Section title="Score" color="#f0abfc">
+            <p>A fusion is worth its element × tiles × 10, then the multipliers stack: <b className="text-white">bigger matches</b> ×2 to ×4, <b className="text-white">chain step</b> k ×k, and <b className="text-white">k fusions at once</b> ×k.</p>
           </Section>
 
           <Section title="Tools" color="#fcd34d">
-            <p><b className="text-white">Hint</b> (free) highlights a good swap. <b className="text-white">Shuffle</b> (−{SHUFFLE_COST}) rearranges the board. <b className="text-white">Catalyst</b> (−{CATALYST_COST}) turns a tile's 4 neighbours into copies of it.</p>
+            <p><b className="text-white">Hint</b> (−{HINT_COST}) highlights a good swap and stays lit until you move. <b className="text-white">Shuffle</b> (−{SHUFFLE_COST}) rearranges the board. <b className="text-white">Catalyst</b> (−{CATALYST_COST}) turns a tile's 4 neighbours into copies of it. A tool needs at least one move left over.</p>
+          </Section>
+
+          <Section title="Sets" color="#c084fc">
+            <p>Make every element of one category in a single run (all the reactive nonmetals, all the noble gases…) to complete a <b className="text-white">set</b>: +{SET_MOVES_PER_MEMBER} moves per member (up to +{SET_MAX_MOVES}) and a big score bonus. Heavier sets pay more.</p>
+            <p>Track them under the periodic table. Tap a category to see what's missing.</p>
           </Section>
 
           <Section title="Nuclear physics" color="#fdba74">
@@ -177,6 +191,15 @@ export function GameOverModal({ score, highScore, isNewBest, run, discoveredCoun
           <Stat label="Nuclear" value={run.nuclear} />
           <Stat label="Elements" value={run.seen} />
         </div>
+
+        {run.sets.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-1.5 rounded-xl border border-slate-500/20 bg-slate-900/40 p-3">
+            <span className="mr-1 text-xs uppercase tracking-[0.16em] text-slate-300">Sets complete</span>
+            {run.sets.map(set => (
+              <span key={set.key} className="set-chip done" style={{ '--cat': set.color, cursor: 'default' }}>{set.label}</span>
+            ))}
+          </div>
+        )}
 
         <div className="mb-5 rounded-xl border border-slate-500/20 bg-slate-900/40 p-3">
           <div className="mb-2 flex items-center justify-center gap-1.5 text-xs uppercase tracking-[0.16em] text-slate-300">

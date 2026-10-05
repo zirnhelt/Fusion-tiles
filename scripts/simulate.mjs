@@ -5,9 +5,10 @@
 //   npm run sim -- --games 500 --bot random --max-turns 3000
 //
 // Bots: greedy (fission, then biggest match, then neutron capture) · random (any matching move)
+// When nothing matches, the bot leans on the Hint tool for its next swap and pays for it.
 
 import {
-  START_MOVES, SHUFFLE_COST, FISSION_MOVE_BONUS,
+  START_MOVES, SHUFFLE_COST, HINT_COST, FISSION_MOVE_BONUS, ELEMENT_SETS, completedSets,
   createStartGrid, findMatches, allSwaps, previewSwap, swapCells,
   resolveCascade, resolveFission, resolveCapture, resolvePassive, computeNewAges, createZeroAges,
   findHintMove, shuffleBoard, maxElementOn,
@@ -61,7 +62,7 @@ function chooseMove(grid, rng) {
   const hint = findHintMove(grid);
   if (hint?.type === 'path' && hint.cells.length === 2 &&
       Math.abs(hint.cells[0][0] - hint.cells[1][0]) + Math.abs(hint.cells[0][1] - hint.cells[1][1]) === 1) {
-    return { type: 'swap', a: hint.cells[0], b: hint.cells[1], dead: true };
+    return { type: 'swap', a: hint.cells[0], b: hint.cells[1], dead: true, hinted: true };
   }
   return { type: 'shuffle', dead: true };
 }
@@ -75,7 +76,8 @@ function playGame(seed) {
   let maxZ = maxElementOn(grid);
   const seen = new Set(grid.flat());
   const firstReach = {};
-  const s = { turns: 0, deadTurns: 0, shuffles: 0, fissions: 0, captures: 0, quasi: 0, spont: 0, decays: 0, cascades: 0, maxCombo: 0, fusions: 0 };
+  const s = { turns: 0, deadTurns: 0, shuffles: 0, hints: 0, fissions: 0, captures: 0, quasi: 0, spont: 0, decays: 0, cascades: 0, maxCombo: 0, fusions: 0, multi: 0, setMoves: 0 };
+  const sets = new Set();
   const movesAt = {};
   const deadByPhase = [0, 0, 0, 0];
   const turnsByPhase = [0, 0, 0, 0];
@@ -86,6 +88,7 @@ function playGame(seed) {
       s.fusions += st.fusions.length;
       s.quasi += st.fusions.filter(f => f.split).length;
       for (const f of st.fusions) { seen.add(f.to); if (f.split) seen.add(f.split.d2); }
+      if (st.fusions.length > 1) s.multi++;
     }
   };
 
@@ -118,8 +121,13 @@ function playGame(seed) {
     const phase = Math.min(3, Math.floor((s.turns - 1) / 25));
     turnsByPhase[phase]++;
     if (move.dead) { deadByPhase[phase]++; s.deadTurns++; }
+    if (move.hinted) {
+      if (moves <= HINT_COST) { moves = 0; break; }
+      s.hints++;
+      moves -= HINT_COST;
+    }
     if (move.type === 'shuffle') {
-      if (moves < SHUFFLE_COST) { moves = 0; break; }
+      if (moves <= SHUFFLE_COST) { moves = 0; break; }
       s.shuffles++;
       const sh = shuffleBoard(grid, ages, rng);
       grid = sh.grid; ages = sh.ages; moves -= SHUFFLE_COST;
@@ -142,12 +150,16 @@ function playGame(seed) {
       grid = g; moves += -1 + bonus;
     }
     for (const v of grid.flat()) seen.add(v);
+    for (const set of completedSets(seen, sets)) {
+      sets.add(set.key);
+      moves += set.moves; score += set.points; s.setMoves += set.moves;
+    }
     maxZ = Math.max(maxZ, maxElementOn(grid));
     for (const m of MILESTONES) if (maxZ >= m && !(m in firstReach)) firstReach[m] = s.turns;
     if ([25, 50, 100, 200, 400].includes(s.turns)) movesAt[s.turns] = moves;
     if ([1, 25, 50, 75].includes(s.turns)) distinctAt[s.turns] = new Set(grid.flat()).size;
   }
-  return { ...s, deadByPhase, turnsByPhase, distinctAt, score, moves, maxZ, seen: seen.size, seenSet: seen, firstReach, movesAt, capped: moves > 0 };
+  return { ...s, deadByPhase, turnsByPhase, distinctAt, score, moves, maxZ, seen: seen.size, seenSet: seen, sets, firstReach, movesAt, capped: moves > 0 };
 }
 
 const pct = (arr, p) => {
@@ -168,6 +180,7 @@ console.log(summary('Final score', results.map(r => r.score)));
 console.log(summary('Heaviest element (Z)', results.map(r => r.maxZ)));
 console.log(summary('Distinct elements seen', results.map(r => r.seen)));
 console.log(summary('Turns w/ no match available', results.map(r => r.deadTurns)));
+console.log(summary('Hints bought', results.map(r => r.hints)));
 console.log(summary('Shuffles', results.map(r => r.shuffles)));
 console.log(summary('Fissions (player)', results.map(r => r.fissions)));
 console.log(summary('Neutron captures', results.map(r => r.captures)));
@@ -175,6 +188,8 @@ console.log(summary('Quasi-fissions', results.map(r => r.quasi)));
 console.log(summary('Spontaneous fissions', results.map(r => r.spont)));
 console.log(summary('Alpha decays', results.map(r => r.decays)));
 console.log(summary('Longest chain', results.map(r => r.maxCombo)));
+console.log(summary('Multi-fusion steps', results.map(r => r.multi)));
+console.log(summary('Moves from sets', results.map(r => r.setMoves)));
 for (const t of [25, 50, 100, 200, 400]) {
   const alive = results.filter(r => t in r.movesAt);
   if (alive.length) console.log(summary(`Moves banked @ turn ${t} (${alive.length})`, alive.map(r => r.movesAt[t])));
@@ -194,6 +209,12 @@ console.log('\nMilestones — share of runs reaching, and median turn reached:')
 for (const m of MILESTONES) {
   const hit = results.filter(r => m in r.firstReach);
   console.log(`  ${sym(m).padEnd(8)} ${String(Math.round((hit.length / GAMES) * 100)).padStart(3)}%   ${hit.length ? 'turn ' + pct(hit.map(r => r.firstReach[m]), 50) : ''}`);
+}
+console.log('\nElement sets — share of runs completing each (members seen in one run):');
+for (const set of ELEMENT_SETS) {
+  const done = results.filter(r => r.sets.has(set.key)).length;
+  const counts = results.map(r => set.members.filter(z => r.seenSet.has(z)).length);
+  console.log(`  ${set.label.padEnd(23)} ${String(Math.round((done / GAMES) * 100)).padStart(3)}%   median ${pct(counts, 50)}/${set.members.length}`);
 }
 const reached = {};
 for (const r of results) reached[r.maxZ] = (reached[r.maxZ] || 0) + 1;

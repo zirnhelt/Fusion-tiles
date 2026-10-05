@@ -124,16 +124,16 @@ const RAW = [
 
 // ── Categories ────────────────────────────────────────────────────────────────
 export const CATEGORIES = {
-  alkali:     { label: 'Alkali metal',          color: '#f87171' },
-  alkaline:   { label: 'Alkaline earth metal',  color: '#fb923c' },
-  transition: { label: 'Transition metal',      color: '#facc15' },
-  post:       { label: 'Post-transition metal', color: '#a3e635' },
-  metalloid:  { label: 'Metalloid',             color: '#2dd4bf' },
-  nonmetal:   { label: 'Reactive nonmetal',     color: '#38bdf8' },
-  halogen:    { label: 'Halogen',               color: '#818cf8' },
-  noble:      { label: 'Noble gas',             color: '#c084fc' },
-  lanthanide: { label: 'Lanthanide',            color: '#f472b6' },
-  actinide:   { label: 'Actinide',              color: '#fb7185' },
+  alkali:     { label: 'Alkali metal',          plural: 'Alkali metals',          color: '#f87171' },
+  alkaline:   { label: 'Alkaline earth metal',  plural: 'Alkaline earth metals',  color: '#fb923c' },
+  transition: { label: 'Transition metal',      plural: 'Transition metals',      color: '#facc15' },
+  post:       { label: 'Post-transition metal', plural: 'Post-transition metals', color: '#a3e635' },
+  metalloid:  { label: 'Metalloid',             plural: 'Metalloids',             color: '#2dd4bf' },
+  nonmetal:   { label: 'Reactive nonmetal',     plural: 'Reactive nonmetals',     color: '#38bdf8' },
+  halogen:    { label: 'Halogen',               plural: 'Halogens',               color: '#818cf8' },
+  noble:      { label: 'Noble gas',             plural: 'Noble gases',            color: '#c084fc' },
+  lanthanide: { label: 'Lanthanide',            plural: 'Lanthanides',            color: '#f472b6' },
+  actinide:   { label: 'Actinide',              plural: 'Actinides',              color: '#fb7185' },
 };
 
 const CATEGORY_BY_Z = (() => {
@@ -222,6 +222,7 @@ export const ELEMENTS = RAW.map(([symbol, name, weight], i) => {
     ...tablePosition(number),
     palette: paletteFor(number),
     categoryColor: CATEGORIES[category].color,
+    categoryLabel: CATEGORIES[category].label,
   };
 });
 
