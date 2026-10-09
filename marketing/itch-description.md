@@ -44,7 +44,9 @@ Bigger reactions pay off faster than they grow:
   Two or three fusions landing at once multiply the points again
 
 Make every element of one category in a single run (all the noble
-gases, all the halogens…) to complete a set for a big bonus.
+gases, all the halogens…) to complete a set for a big bonus. Finish a
+category on your saved periodic table, however many runs it takes, and
+its collection pays double, once.
 
 Set up cascades and watch the board clear itself. Those are the moments.
 

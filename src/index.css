@@ -654,6 +654,7 @@ body {
   font-size: 11px;
   color: #64748b;
 }
+.set-member.found { border-style: solid; border-color: rgba(148, 163, 184, 0.3); color: #cbd5e1; }
 .set-member.made { border-style: solid; border-color: rgba(148, 163, 184, 0.6); background: rgba(148, 163, 184, 0.14); color: #fff; }
 @keyframes fresh { 0% { box-shadow: 0 0 0 0 #fff; } 50% { box-shadow: 0 0 14px 3px #fff; } 100% { box-shadow: 0 0 8px -1px var(--cat); } }
 

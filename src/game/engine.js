@@ -222,22 +222,28 @@ export const chainMoveBonus = (combo) => CASCADE_MOVE_BONUS * Math.max(0, combo 
 export const multiMoveBonus = (count) => (count * (count - 1)) / 2;
 
 // ── Element sets ─────────────────────────────────────────────────────────────
-// Making every element of one category in a single run (all the noble gases,
-// all the halogens…). Bigger and heavier sets pay more.
+// Every element of one category (all the noble gases, all the halogens…).
+// Two ways to complete one, each paid in the run where it happens:
+// - run set: all made within a single run (pays every run it's done)
+// - collection: all on your saved periodic table, across runs (pays once, ever)
+// Bigger and heavier sets pay more.
 export const SET_MOVES_PER_MEMBER = 2;
 export const SET_MAX_MOVES = 30;
 export const SET_POINTS_PER_Z = 100;
+export const COLLECTION_REWARD_SCALE = 2;
 
 export const ELEMENT_SETS = Object.entries(CATEGORIES).map(([key, { plural, color }]) => {
   const members = ELEMENTS.filter(e => e.category === key).map(e => e.number);
+  const moves = Math.min(SET_MAX_MOVES, members.length * SET_MOVES_PER_MEMBER);
+  const points = members.reduce((sum, z) => sum + z, 0) * SET_POINTS_PER_Z;
   return {
-    key, label: plural, color, members,
-    moves: Math.min(SET_MAX_MOVES, members.length * SET_MOVES_PER_MEMBER),
-    points: members.reduce((sum, z) => sum + z, 0) * SET_POINTS_PER_Z,
+    key, label: plural, color, members, moves, points,
+    collection: { moves: moves * COLLECTION_REWARD_SCALE, points: points * COLLECTION_REWARD_SCALE },
   };
 });
 
-// Sets every member of which is in `seen`, skipping keys already in `claimed`
+// Sets every member of which is in `seen` (a run's elements, or the saved
+// table), skipping keys already in `claimed`
 export const completedSets = (seen, claimed = new Set()) =>
   ELEMENT_SETS.filter(s => !claimed.has(s.key) && s.members.every(z => seen.has(z)));
 

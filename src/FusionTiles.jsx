@@ -34,8 +34,14 @@ const loadHistory = () => {
     : [];
 };
 
+// Saved collections are untrusted too: keep only real set keys
+const loadCollections = () => {
+  const raw = load(KEYS.collections, []);
+  return new Set(Array.isArray(raw) ? raw.filter(k => E.ELEMENT_SETS.some(s => s.key === k)) : []);
+};
+
 const newRun = (highScore, bestZ) => ({
-  fusions: 0, fissions: 0, captures: 0, quasi: 0, bestChain: 0, maxZ: 1, seen: new Set(), sets: new Set(), newDiscoveries: [],
+  fusions: 0, fissions: 0, captures: 0, quasi: 0, bestChain: 0, maxZ: 1, seen: new Set(), sets: new Set(), collections: new Set(), newDiscoveries: [],
   startHighScore: highScore, startBestZ: bestZ,
 });
 
@@ -97,6 +103,7 @@ export default function FusionTiles() {
   const [log, setLog] = useState([]);
   const [movesDelta, setMovesDelta] = useState(null);
   const [discovered, setDiscovered] = useState(() => new Set(load(KEYS.discovered, [])));
+  const [collections, setCollections] = useState(loadCollections);
   const [runSeen, setRunSeen] = useState(() => new Set());
   const [runMaxZ, setRunMaxZ] = useState(1);
   const [fresh, setFresh] = useState(() => new Set());
@@ -115,6 +122,7 @@ export default function FusionTiles() {
   const gameToken = useRef(0);
   const motionKey = useRef(0);
   const discoveredRef = useRef(discovered);
+  const collectionsRef = useRef(collections);
   const bestZRef = useRef(bestZ);
   const runRef = useRef(newRun(highScore, bestZ));
   const restartTimer = useRef(null);
@@ -267,6 +275,7 @@ export default function FusionTiles() {
         maxZ: run.maxZ, fusions: run.fusions, nuclear: run.fissions + run.captures + run.quasi, bestChain: Math.max(1, run.bestChain),
         seen: run.seen.size, newDiscoveries: run.newDiscoveries, newBestZ: run.maxZ > run.startBestZ,
         sets: E.ELEMENT_SETS.filter(set => run.sets.has(set.key)),
+        collections: E.ELEMENT_SETS.filter(set => run.collections.has(set.key)),
       },
     });
   };
@@ -538,18 +547,32 @@ export default function FusionTiles() {
         }
       }
 
-      // Whole categories made this run pay out once each
+      // Whole categories pay out: once per run for making them all this run,
+      // and once ever for completing them on the saved table
       noteElements(g);
-      for (const set of E.completedSets(runRef.current.seen, runRef.current.sets)) {
-        runRef.current.sets.add(set.key);
-        callout(set.label.toUpperCase(), `SET COMPLETE · +${set.moves} moves`, set.color);
-        pushLog(`◆ SET COMPLETE: ${set.label.toUpperCase()} · +${set.moves} MOVES · +${set.points.toLocaleString()}`, 'discovery');
-        setToasts(prev => [...prev, { id: ++toastId, kind: 'set', set }]);
+      const run = runRef.current;
+      const payouts = [
+        ...E.completedSets(run.seen, run.sets).map(set => ({ set, title: 'Set complete', moves: set.moves, points: set.points })),
+        ...E.completedSets(discoveredRef.current, collectionsRef.current)
+          .map(set => ({ set, title: 'Collection complete', collection: true, ...set.collection })),
+      ];
+      for (const { set, title, collection, moves: earned, points } of payouts) {
+        if (collection) {
+          run.collections.add(set.key);
+          collectionsRef.current = new Set(collectionsRef.current).add(set.key);
+          setCollections(collectionsRef.current);
+          save(KEYS.collections, [...collectionsRef.current]);
+        } else {
+          run.sets.add(set.key);
+        }
+        callout(set.label.toUpperCase(), `${title.toUpperCase()} · +${earned} moves`, set.color);
+        pushLog(`◆ ${title.toUpperCase()}: ${set.label.toUpperCase()} · +${earned} MOVES · +${points.toLocaleString()}`, 'discovery');
+        setToasts(prev => [...prev, { id: ++toastId, kind: 'set', set, title, moves: earned, points }]);
         setShakeKey(k => k + 1);
         sfx.discover();
-        addScore(set.points);
-        gained += set.points;
-        bonus += set.moves;
+        addScore(points);
+        gained += points;
+        bonus += earned;
         await pause(1150);
       }
 
@@ -670,6 +693,10 @@ export default function FusionTiles() {
     bestZRef.current = bz;
     setBestZ(bz);
     save(KEYS.bestZ, bz);
+    const cols = new Set([...loadCollections(), ...collectionsRef.current]);
+    collectionsRef.current = cols;
+    setCollections(cols);
+    save(KEYS.collections, [...cols]);
     const disc = new Set([...load(KEYS.discovered, []), ...discoveredRef.current]);
     discoveredRef.current = disc;
     setDiscovered(disc);
@@ -785,7 +812,7 @@ export default function FusionTiles() {
             <Console lines={log} />
           </div>
           <div className="area-table">
-            <PeriodicTable discovered={discovered} runSeen={runSeen} fresh={fresh} depositRange={depositRange} />
+            <PeriodicTable discovered={discovered} runSeen={runSeen} collections={collections} fresh={fresh} depositRange={depositRange} />
           </div>
         </div>
 
@@ -816,9 +843,9 @@ export default function FusionTiles() {
             {toast.set.members.slice(0, 7).map(z => <Tile key={z} z={z} size={36} showWeight={false} />)}
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: toast.set.color }}>Set complete</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: toast.set.color }}>{toast.title}</div>
             <div className="truncate text-sm font-bold text-white">{toast.set.label}</div>
-            <div className="font-mono text-[11px] text-slate-300">+{toast.set.moves} moves · +{toast.set.points.toLocaleString()}</div>
+            <div className="font-mono text-[11px] text-slate-300">+{toast.moves} moves · +{toast.points.toLocaleString()}</div>
           </div>
         </div>
       )}
