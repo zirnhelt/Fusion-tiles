@@ -1,9 +1,9 @@
 import React from 'react';
-import { X, Trophy, Sparkles, RotateCcw, AlertTriangle } from 'lucide-react';
+import { X, Trophy, Sparkles, RotateCcw, AlertTriangle, Star } from 'lucide-react';
 import { el } from '../game/elements.js';
 import {
   CASCADE_MOVE_BONUS, CATALYST_COST, HINT_COST, SHUFFLE_COST, START_MOVES, FISSION_MOVE_BONUS,
-  SET_MOVES_PER_MEMBER, SET_MAX_MOVES,
+  SET_MOVES_PER_MEMBER, SET_MAX_MOVES, COLLECTION_REWARD_SCALE,
 } from '../game/engine.js';
 import Tile from './Tile.jsx';
 
@@ -63,7 +63,8 @@ export function HelpModal({ onClose }) {
 
           <Section title="Sets" color="#c084fc">
             <p>Make every element of one category in a single run (all the reactive nonmetals, all the noble gases…) to complete a <b className="text-white">set</b>: +{SET_MOVES_PER_MEMBER} moves per member (up to +{SET_MAX_MOVES}) and a big score bonus. Heavier sets pay more.</p>
-            <p>Track them under the periodic table. Tap a category to see what's missing.</p>
+            <p>Finish a category on your saved periodic table, across as many runs as it takes, and its <b className="text-white">collection</b> pays {COLLECTION_REWARD_SCALE}× that bonus, once ever. Collections get a ★.</p>
+            <p>Track both under the periodic table. Tap a category to see what's missing.</p>
           </Section>
 
           <Section title="Nuclear physics" color="#fdba74">
@@ -192,12 +193,26 @@ export function GameOverModal({ score, highScore, isNewBest, run, discoveredCoun
           <Stat label="Elements" value={run.seen} />
         </div>
 
-        {run.sets.length > 0 && (
-          <div className="mb-4 flex flex-wrap items-center justify-center gap-1.5 rounded-xl border border-slate-500/20 bg-slate-900/40 p-3">
-            <span className="mr-1 text-xs uppercase tracking-[0.16em] text-slate-300">Sets complete</span>
-            {run.sets.map(set => (
-              <span key={set.key} className="set-chip done" style={{ '--cat': set.color, cursor: 'default' }}>{set.label}</span>
-            ))}
+        {run.sets.length + run.collections.length > 0 && (
+          <div className="mb-4 space-y-1.5 rounded-xl border border-slate-500/20 bg-slate-900/40 p-3">
+            {run.sets.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="mr-1 text-xs uppercase tracking-[0.16em] text-slate-300">Sets complete</span>
+                {run.sets.map(set => (
+                  <span key={set.key} className="set-chip done" style={{ '--cat': set.color, cursor: 'default' }}>{set.label}</span>
+                ))}
+              </div>
+            )}
+            {run.collections.length > 0 && (
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <span className="mr-1 text-xs uppercase tracking-[0.16em] text-amber-200">Collections complete</span>
+                {run.collections.map(set => (
+                  <span key={set.key} className="set-chip done" style={{ '--cat': set.color, cursor: 'default' }}>
+                    <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300" />{set.label}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

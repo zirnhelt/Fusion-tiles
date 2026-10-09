@@ -17,6 +17,7 @@ export const KEYS = {
   gamesPlayed: 'fusionTiles.gamesPlayed',
   tips: 'fusionTiles.tips',
   history: 'fusionTiles.history',
+  collections: 'fusionTiles.collections', // element sets completed on the saved table (paid out once)
 };
 
 const COOKIE_PREFIX = 'ft_';

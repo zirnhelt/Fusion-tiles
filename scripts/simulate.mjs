@@ -22,6 +22,7 @@ const GAMES = +(args.games ?? 200);
 const MAX_TURNS = +(args['max-turns'] ?? 1500);
 const BOT = args.bot ?? 'greedy';
 const SEED = +(args.seed ?? 1);
+const CAREER = +(args.career ?? 50); // runs per simulated career, for collection stats
 
 const mulberry32 = (a) => () => {
   a |= 0; a = (a + 0x6d2b79f5) | 0;
@@ -215,6 +216,27 @@ for (const set of ELEMENT_SETS) {
   const done = results.filter(r => r.sets.has(set.key)).length;
   const counts = results.map(r => set.members.filter(z => r.seenSet.has(z)).length);
   console.log(`  ${set.label.padEnd(23)} ${String(Math.round((done / GAMES) * 100)).padStart(3)}%   median ${pct(counts, 50)}/${set.members.length}`);
+}
+// Collections build up across runs, and runs are independent, so resample
+// finished runs into careers to see how many it takes to fill each category.
+const careerRng = mulberry32(SEED * 7919);
+const CAREERS = 500;
+const toFill = Object.fromEntries(ELEMENT_SETS.map(set => [set.key, []]));
+for (let c = 0; c < CAREERS; c++) {
+  const table = new Set();
+  const open = new Set(ELEMENT_SETS.map(set => set.key));
+  for (let run = 1; run <= CAREER && open.size; run++) {
+    for (const z of results[Math.floor(careerRng() * results.length)].seenSet) table.add(z);
+    for (const set of ELEMENT_SETS) {
+      if (open.has(set.key) && set.members.every(z => table.has(z))) { open.delete(set.key); toFill[set.key].push(run); }
+    }
+  }
+}
+console.log(`\nCollections — share of ${CAREER}-run careers that fill each category, and runs it takes:`);
+for (const set of ELEMENT_SETS) {
+  const runs = toFill[set.key];
+  const share = String(Math.round((runs.length / CAREERS) * 100)).padStart(3);
+  console.log(`  ${set.label.padEnd(23)} ${share}%   ${runs.length ? `median run ${pct(runs, 50)} · p90 ${pct(runs, 90)}` : ''}`);
 }
 const reached = {};
 for (const r of results) reached[r.maxZ] = (reached[r.maxZ] || 0) + 1;

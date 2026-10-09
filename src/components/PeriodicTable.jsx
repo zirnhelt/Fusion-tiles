@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Star } from 'lucide-react';
 import { ELEMENTS, el } from '../game/elements.js';
 import { ELEMENT_SETS } from '../game/engine.js';
 import { routesFor, fusesInto } from '../game/recipes.js';
@@ -67,24 +67,31 @@ function ElementInfo({ z, found, onPick }) {
   );
 }
 
-// One category's progress this run: which members are made, which are still missing
-function SetInfo({ set, runSeen, onPick }) {
+// One category's progress: this run (pays every run) and on the saved table (pays once)
+function SetInfo({ set, runSeen, discovered, collected, onPick }) {
   const made = set.members.filter(z => runSeen.has(z)).length;
+  const found = set.members.filter(z => discovered.has(z)).length;
+  const total = set.members.length;
+  const memberState = (z) => (runSeen.has(z) ? 'made' : discovered.has(z) ? 'found' : '');
+  const memberTitle = (z) => `${el(z).name} · ${runSeen.has(z) ? 'made this run' : discovered.has(z) ? 'on your table, not made this run' : 'never made'}`;
   return (
     <div className="mt-3 rounded-xl border border-slate-500/20 bg-slate-900/50 p-3 text-xs text-slate-300">
-      <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-x-3">
-        <span className="text-sm font-semibold" style={{ color: set.color }}>{set.label}</span>
-        <span className="font-mono text-slate-400">{made}/{set.members.length} this run · complete for +{set.moves} moves, +{set.points.toLocaleString()}</span>
+      <div className="mb-1 text-sm font-semibold" style={{ color: set.color }}>{set.label}</div>
+      <div className="mb-2 space-y-0.5 font-mono text-[11px] text-slate-400">
+        <div>
+          <span className="text-slate-200">This run {made}/{total}</span> · +{set.moves} moves, +{set.points.toLocaleString()} every run
+        </div>
+        <div>
+          {collected ? (
+            <span className="text-amber-200"><Star className="mr-1 inline h-3 w-3 fill-current" />Collection complete · claimed</span>
+          ) : (
+            <><span className="text-slate-200">Collection {found}/{total}</span> · +{set.collection.moves} moves, +{set.collection.points.toLocaleString()} once</>
+          )}
+        </div>
       </div>
       <div className="flex flex-wrap gap-1">
         {set.members.map(z => (
-          <button
-            type="button"
-            key={z}
-            onClick={() => onPick(z)}
-            className={`set-member ${runSeen.has(z) ? 'made' : ''}`}
-            title={`${el(z).name}${runSeen.has(z) ? ' · made this run' : ' · not made yet this run'}`}
-          >
+          <button type="button" key={z} onClick={() => onPick(z)} className={`set-member ${memberState(z)}`} title={memberTitle(z)}>
             {el(z).symbol}
           </button>
         ))}
@@ -93,7 +100,7 @@ function SetInfo({ set, runSeen, onPick }) {
   );
 }
 
-export default function PeriodicTable({ discovered, runSeen, fresh, depositRange }) {
+export default function PeriodicTable({ discovered, runSeen, collections, fresh, depositRange }) {
   const [picked, setPicked] = useState(null);
   const [focus, setFocus] = useState(null); // set key whose members are spotlit
   const focusSet = ELEMENT_SETS.find(s => s.key === focus);
@@ -142,15 +149,17 @@ export default function PeriodicTable({ discovered, runSeen, fresh, depositRange
       {picked ? (
         <ElementInfo z={picked} found={discovered.has(picked)} onPick={setPicked} />
       ) : focusSet ? (
-        <SetInfo set={focusSet} runSeen={runSeen} onPick={setPicked} />
+        <SetInfo set={focusSet} runSeen={runSeen} discovered={discovered} collected={collections.has(focusSet.key)} onPick={setPicked} />
       ) : (
-        <p className="mt-3 text-center text-xs text-slate-500">Tap any element to see how to make it. Make a whole category in one run to complete a set.</p>
+        <p className="mt-3 text-center text-xs text-slate-500">Tap any element to see how to make it. Make a whole category in one run to complete a set, or across runs to complete its collection.</p>
       )}
 
       <div className="mt-3 flex flex-wrap justify-center gap-1" role="list" aria-label="Element sets this run">
         {ELEMENT_SETS.map(set => {
           const made = set.members.filter(z => runSeen.has(z)).length;
+          const found = set.members.filter(z => discovered.has(z)).length;
           const done = made === set.members.length;
+          const collected = collections.has(set.key);
           return (
             <button
               type="button"
@@ -158,12 +167,13 @@ export default function PeriodicTable({ discovered, runSeen, fresh, depositRange
               className={`set-chip ${done ? 'done' : ''} ${focus === set.key ? 'active' : ''}`}
               style={{ '--cat': set.color }}
               aria-pressed={focus === set.key}
-              title={`${set.label}: ${made} of ${set.members.length} made this run`}
+              title={`${set.label}: ${made} of ${set.members.length} made this run · ${collected ? 'collection complete' : `${found} of ${set.members.length} collected`}`}
               onClick={() => { setFocus(f => (f === set.key ? null : set.key)); setPicked(null); }}
             >
               {done ? <Check className="h-2.5 w-2.5" /> : <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: set.color }} />}
               {set.label}
               <span className="font-mono opacity-70">{made}/{set.members.length}</span>
+              {collected && <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300" aria-label="collection complete" />}
             </button>
           );
         })}
